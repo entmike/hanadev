@@ -8,7 +8,7 @@
 https://github.com/entmike/hanadev/tree/Part3
 
 # Overview
-In the second part of this series, I will cover creating a basic Vue frontend to consume our backend service that we created in Part 2.
+In the third part of this series, I will cover creating a basic Vue frontend to consume our backend service that we created in Part 2.
 
 ## Prerequisites
 
