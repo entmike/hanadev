@@ -3,309 +3,341 @@
 1. [Develop Simple on HANA Express in AWS Cloud 9](https://blogs.sap.com/2019/05/16/develop-simple-on-hana-express-in-aws-cloud-9/)
 2. [Develop Simple on HANA Express in AWS Cloud 9 Part 2 – The Backend App](https://blogs.sap.com/2019/05/17/develop-simple-on-hana-express-in-aws-cloud-9-part-2-the-backend-app/)
 
-# Introduction
-This blog post started much simpler as a personal wiki set of notes on how to quickly set up a Cloud 9 IDE in AWS to use HANA.  However, as I continued to document, the more I felt like this might be an interesting story/journey of mine to share.  Probably the past 2 or 3 months, I've been on a personal journey of getting back into application/web development after many years of spending time in Analytics/BI/Design Studio SDKing etc.
+# Overview
+In the second part of this series, I'm covering how to create a simple backend NPM module that will run inside of a container and be added to our Docker Compose stack from the first part of the series.  The end result will be the ability to issue an http POST call that is routed with the Node `express` npm module and get back some system metadata about the HANA Express instance.  The Express routing will serve as a framework for similar API calls we will write in further parts of the series.  Also in further parts, we will write Vue frontend web app to consume these calls and show in a web browser.
 
-I've been coding in one language or another for decades, but spending so much time in the BI area has left me playing catch up, as containerization, npm, web frameworks, etc have change dramatically over the past 6-7 years.  Even new methodologies like CI/CD and DevOps all feel foreign and new to me.
+## Prerequisites
 
-And while I've kept up *just enough* to know what Docker is, and I can spell Kubernetes, I'm not quite ready to go all in with a container orchestration platform.  I guess because I'm more on the "Dev" side of "DevOps" spectrum, Kubernetes doesn't (and shouldn't) excite me that much.  Maybe another year/life...
+- Cloud 9 set up and configured as described in [Part 1](https://blogs.sap.com/2019/05/16/develop-simple-on-hana-express-in-aws-cloud-9/)
 
-So with my meager financial/platform resources and knowhow as a developer, I've set off to try to do some fun lean application development with the following parameters in mind:
+# Update the docker-compose directory with a .env file
 
-- Use **HANA Express**.  Since it's an area of affection for me and (increasingly familiar because of my Analytics background/day-job.)  Sure, I could use MySQL/MariaDB/SQLite but where's the fun in that?  That's been done by zillions of others.
-- Use **AWS Cloud 9** IDE.  Now this won't make anyone in SAP very happy, but I've chosen **not** to use SAP Cloud Platform/WebIDE/Cloud Foundry.  I've taken dozens of recent tutorials on http://developers.sap.com and they are **terrific**, however I simply think that it's quite over-architected for developing simple applications.  Perhaps I'll grow into it in the future.  I've chosen Cloud9 because:
-
-    - It's cheap to run and will turn itself off.
-    - It's a hackable EC2 instance that I can ssh into easily
-    - The UI is intuitive and straightforward
-- **Containerize**.  Last year I sat down and took the time to understand the beauty, power and elegance of Docker containers.  It truly is a game changer for deployments and baselining an application to work on, you know, not just "my PC".  But I dont want to jump off the deep end with Kubernetes.  It's just overkill for my brain.  I've chosen to use **Docker Compose** since it doesn't require me to understand k8s concepts such as Nodes/Workers, Pods, Clusters, etc.  To me, a Docker Compose file is a nice toe in the water for someone like me coming from simple Node/NPM development -> simple Docker Containers -> and now Docker Compose.  I'm sure I'll eventually embrace a larger container orchestration framework, I'm working my way from bottom up, rather than top down, which I know where a lot of other tend to start.
-
-So how feasible/quick is it?  It turns out (for me) to not be too bad at all!  So if you are someone how likes HANA but maybe wants to try a non-SAP Cloud IDE, read on and follow this initial Part of a multi-part series on coding in Cloud 9 with HANA Express.
-
-# Goal
-The goal of this blog is to walk you through the simplest configuration of a Docker Compose stack running a SQLPad Container that can interact with the HANA Express container.  Futher posts will build off of this initial Compose stack, so follow along if you have the time/patience.
-
-## Feedback/Questions
-Please don't hesitate to drop me a comment/question/flame if something simply doesn't work or make sense, or even if you disagree with this approach or my overall values in life.  I appreciate any feedback!  :)
-
-# Initial Configuration
-This section explains initial configuration needed for your Cloud 9 environment.  We will install Docker Compose, log into DockerHub with your Docker Account, and resize your Cloud 9 environment's disk size from the default 10GB to 20GB to make a little more room for HANA Express.
-
-## Prerequisties
-
-- [AWS Cloud 9 Instance](https://aws.amazon.com/cloud9/) (`m4.large` (8 GiB RAM + 2 vCPU) recommended)
-    Setup is easy in AWS and takes about 2 or 3 minutes to be up and running.
+1. Launch Cloud 9 IDE, and click the Gear button next to the root folder of your workspace.  Click **Show Hidden Files**
+2. Right-click your `/hanadev` folder and add a new file called `.env`.  Open the file and put the following contents:
     
-- [DockerHub Account](https://hub.docker.com/) (Free)
-    Since SAP makes you log into Docker Hub to pull their HANA Express image, you'll want to create a free Docker Hub account to do so.
-
-## Log into Docker and install Docker Compose
-
-1. Log into Cloud 9
-2. Open a Terminal window and run:
-    
-    ```bash
-    docker login -u yourusername
     ```
-    Provide your password and proceed with the following commands:
-    ```bash
-    sudo curl -L https://github.com/docker/compose/releases/download/1.24.0/docker-compose-`uname -s`-`uname -m` -o /usr/local/bin/docker-compose
-    sudo chmod +x /usr/local/bin/docker-compose
+    HXE_MASTER_PASSWORD=YourPasswordFromPart1
+    HANA_SERVER=hxehost:39017
+    HANA_UID=SYSTEM
     ```
     
-## Resize your Cloud 9 Environment
-The initial Cloud 9 environment is just a tad too small (10GB) so we'll want to increase the disk size to **20GB**.  Don't worry, it's quick and painless.
+    This will serve 2 purposes:
+    1. This will allow you to not have to set your enviornment variable manually or pass it via command-line each time your Cloud 9 IDE spins down and back up.
+    2. The additional environment variables (along with `HXE_MASTER_PASSWORD`) will serve as parameters for our backend app we will be writing next.
 
-1. Create a file called `resize.sh` in the root directory of your workspace and paste the following script:
-    *(Script courtesy of Amazon documentation: https://docs.aws.amazon.com/cloud9/latest/user-guide/move-environment.html)*
-    
-    ```bash
-    #!/bin/bash
+# Add one global NPM module to your Cloud 9 IDE
+In order to connect to SAP HANA from Node, we need to use `@sap/hana-client` npm module.  However, we cannot simply do a normal `npm install @sap/hana-client`, because SAP has to make it a little harder and they've opted to host it on their own npm server, so type the following 2 commands from a Terminal window:
 
-    # Specify the desired volume size in GiB as a command-line argument. If not specified, default to 20 GiB.
-    SIZE=${1:=20}
-    
-    # Install the jq command-line JSON processor.
-    sudo yum -y install jq
-    
-    # Get the ID of the envrionment host Amazon EC2 instance.
-    INSTANCEID=$(curl http://169.254.169.254/latest/meta-data//instance-id)
-    
-    # Get the ID of the Amazon EBS volume associated with the instance.
-    VOLUMEID=$(aws ec2 describe-instances --instance-id $INSTANCEID | jq -r .Reservations[0].Instances[0].BlockDeviceMappings[0].Ebs.VolumeId)
-    
-    # Resize the EBS volume.
-    aws ec2 modify-volume --volume-id $VOLUMEID --size $SIZE
-    
-    # Wait for the resize to finish.
-        while [ "$(aws ec2 describe-volumes-modifications --volume-id $VOLUMEID --filters Name=modification-state,Values="optimizing","completed" | jq '.VolumesModifications | length')" != "1" ]; do
-      sleep 1
-    done
-    
-    # Rewrite the partition table so that the partition takes up all the space that it can.
-    sudo growpart /dev/xvda 1
-    
-    # Expand the size of the file system.
-    sudo resize2fs /dev/xvda1
-    ```
-2. From a Terminal window, type:
-     
+```bash
+npm config set @sap:registry https://npm.sap.com
+npm i -g @sap/hana-client
+```
+**Note** We are installing this NPM module globally because in my experience, this is a problematic library to place inside your own NPM package when copying entire folders from one environment to another.  This is because:
+
+1. The fact that you have to remember to set the registry to SAP's npm box when doing an `npm install` on a new development box if you are cloning a project.
+2. If you bounce around systems (Windows, to Cloud9 (Linux), to Mac (Darwin)), the architectures are different which means you do NOT want to inadvertantly copy the entire `node_modules` from your repository because technically the `npm install @sap/hana-client` does a bunch of compiling at that point and you'll get a mismatch if you change OS types.
+3. I am overlooking some other elegant reason that would get around this issue that someone can clue me in on.
+
+But I digress, just install it globally to humor me :)
+
+# Creating a NPM module for our backend
+
+We will be structuring each subsequent piece of our growing application inside the `hanadev` directory.
+
+1. In your `hanadev` folder, create a new folder called `hello-world-app`.
+2. In your `hello-world-app` folder, create another folder called `backend`.  This will be our location for our backend module.
+2. From a Terminal, cd to the `hello-world-app/backend` directory, and type `npm init` and take all the default options (just keep pressing Enter) when prompted.
+3. Next, we will need to install following module for our backend app by typing the following:
+
     ```bash
-    chmod +x resize.sh 
-    ./resize.sh 20
+    npm i express cors body-parser
     ```
-    After a few moments and some console spam, you should receive a confirmation that your disk has been resized:
+    
+4. In your file browser in Cloud 9, you should now have a few new folders and files under `/hanadev/hello-world-app/backend`.  Open the `package-json` file and modify the `scripts` section to say:
+    
+    ```json
+    "scripts": {
+      "prod": "node server.js"
+    },
+    ```
+    
+    For example, your `package.json` should now look similar to this:
     
     ```
     {
-        "VolumeModification": {
-            "TargetSize": 20, 
-            "TargetVolumeType": "gp2", 
-            "ModificationState": "modifying", 
-            "VolumeId": "vol-0daed2d158c3fafc1", 
-            "TargetIops": 100, 
-            "StartTime": "2019-05-16T18:01:42.000Z", 
-            "Progress": 0, 
-            "OriginalVolumeType": "gp2", 
-            "OriginalIops": 100, 
-            "OriginalSize": 10
-        }
+      "name": "backend",
+      "version": "1.0.0",
+      "description": "",
+      "main": "index.js",
+      "scripts": {
+        "prod": "node server.js"
+      },
+      "author": "",
+      "license": "ISC",
+      "dependencies": {
+        "body-parser": "^1.19.0",
+        "cors": "^2.8.5",
+        "express": "^4.17.0"
+      }
     }
-    CHANGED: disk=/dev/xvda partition=1: start=4096 old: size=20967390,end=20971486 new: size=41938910,end=41943006
-    resize2fs 1.43.5 (04-Aug-2017)
-    Filesystem at /dev/xvda1 is mounted on /; on-line resizing required
-    old_desc_blocks = 1, new_desc_blocks = 2
-    The filesystem on /dev/xvda1 is now 5242363 (4k) blocks long.
     ```
-
-## Setting up a Stack
-
-This section shows how to set up a simple HANA development stack complete with a running instance of HANA Express.
-1. In Cloud 9, create a new folder in called `hanadev` in the root of your workspace.
-2. Create a new file called `docker-compose.yaml` and paste in the following.
     
+5. In the `hello-world-app/backend` folder, create a `server.js` file which will serve as our entry point for our backend service routing.  Paste in the following code:
+
+    ```javascript
+    const express = require('express');
+    const app = express();
+    const bodyParser = require('body-parser');
+    const hana = require('@sap/hana-client');
+    
+    const port = process.env.PORT || 9999;
+    
+    if(!process.env.HANA_SERVERNODE
+        || !process.env.HANA_PWD || !process.env.HANA_UID) {
+        console.error(`Set the following environment variables:
+        HANA_SERVERNODE\tYour HANA hostname:port
+        HANA_UID\tYour HANA User
+        HANA_PWD\tYour HANA Password`);
+    }else{
+        let overviewRouter = require('./api/overview');
+        app.use('/api/overview', overviewRouter);
+        app.use(bodyParser.json());
+        app.use(bodyParser.urlencoded({
+            extended : true
+        }));
+        
+        app.listen(port, ()=>{
+            console.log(`Server started on port ${port}`);
+        });
+    }
+    ```
+    
+    So what is this doing?  Basically we are including a few common libraries and setting up a simple Express server that has one route waiting for requests on `/api/overview`.
+    
+6. Let's add one more file.  First, create a `api` folder inside of `hello-world-app/backend`.  Inside that `api` folder, create a file called `overview.js`.  Paste in the following contents:
+
+    ```javascript
+    const express = require('express');
+    const router = express.Router();
+    const cors = require('cors');
+    const hana = require('@sap/hana-client');
+    const bodyParser = require('body-parser');
+    
+    router.use(bodyParser.json());
+    router.use(bodyParser.urlencoded({extended:true}));
+    router.options('*',cors());
+    
+    router.post('/',cors(),(req,res)=>{
+        let conn = hana.createConnection();
+        var conn_params = {
+            serverNode  : process.env.HANA_SERVERNODE,
+            uid         : process.env.HANA_UID,
+            pwd         : process.env.HANA_PWD
+        };
+        
+        conn.connect(conn_params, function(err) {
+            if (err) {
+                conn.disconnect();
+                console.log(`Error connecting: ${JSON.stringify(err)}`);
+                res.end(err.msg);
+            }else{
+                conn.exec("SELECT NAME AS KEY, VALUE AS VAL FROM M_SYSTEM_OVERVIEW;", null, function (err, results) {
+                    conn.disconnect();
+                    if (err) {
+                        res.status(500);
+                        res.json(err);
+                        console.log(err);
+                        res.end();
+                    }else{
+                        res.end(JSON.stringify({
+                            backend_information : {
+                                server : process.env.HANA_SERVERNODE,
+                                user : process.env.HANA_UID
+                            },
+                            M_SYSTEM_OVERVIEW : results
+                        },null,2));
+                    }
+                });
+            }
+        });
+    });
+    
+    module.exports = router;
+    ```
+    
+    In summary, this code will return some JSON that says what HANA user this code is running as, and some information about the HANA System by querying the `M_SYSTEM_OVERVIEW` table.
+    
+    Ok!  Coding is done.  Now how do we run this?
+
+# Make our new Docker Image for our App
+
+Since we (ok I) want to containerize this application into a self-contained stack, we cannot simply run `npm run prod`.  This is because in our development environment, we've put HANA Express in a container that is only aware of its own Docker Compose network.  This is the nature and beauty of containerization so what we need to do is add our backend application to our stack.  So let's do this now.
+
+1. Inside of our `hello-world-app` folder, create a file called `Dockerfile`.  Paste in the following contents:
+
+    ```dockerfile
+    # Docker Image containing SAP HANA npm package
+    FROM node:8-slim
+    
+    LABEL Maintainer="Your Name <your.name@example.com>"
+    
+    # Add SAP HANA Client NPM package from SAP's npm repository
+    RUN npm config set @sap:registry https://npm.sap.com && npm i -g @sap/hana-client
+    
+    # Set the global NPM path Environment variable
+    ENV NODE_PATH /usr/local/lib/node_modules
+    COPY /hello-world-app /app
+    WORKDIR /app
+    CMD npm run prod
+    ```
+    
+    Basically what this Dockerfile is doing is taking Node's `node:8-slim` Docker image and adding a few small things to it, making it our own new Docker image that we will add to our Stack in a moment.  The additions include:
+    
+    - Configuring the SAP NPM Repository reference and installing `@sap/hana-client` also globally (as we did in our Cloud 9 development box.)
+    - Since we are using a global module, we are setting the `NODE_PATH` enviornment variable so that Node knows where the global npm packages are.
+    - Copy the contents of our `hello-world-app` files over to the image under `/app`
+    - Change the container's starting work directory to `/app` and set the starting container command to `npm run prod`.
+
+# Add our Docker Image to our Stack
+
+Now that we have our Docker Image defined for our container, we need to add it to our Docker Compose stack so that it can communicate with the HANA Express database.
+
+1. Open the `docker-compose.yaml` file under `/hanadev` directory and update the contents to be this:
+
     ```yaml
     version: '2'
-    
+        
     services:
+        
+      hello-world-app:
+        build: 
+          context: .
+          dockerfile: ./hello-world-app/Dockerfile
+        ports:
+          - "3333:9999"
+        environment:
+          - HANA_UID=${HANA_UID}
+          - HANA_PWD=${HXE_MASTER_PASSWORD}
+          - HANA_SERVERNODE=${HANA_SERVER} 
     
       sqlpad:
         image: sqlpad/sqlpad
-        volumes:
-          - sqlpad:/var/lib/sqlpad
         ports:
           - "8899:3000"
-          
+              
       hxehost:
         image: store/saplabs/hanaexpress:2.00.036.00.20190223.1
         hostname: hxe
         volumes:
           - hana-express:/hana/mounts
         command: --agree-to-sap-license --master-password ${HXE_MASTER_PASSWORD}
-    
+        
     volumes:
       hana-express:
-      sqlpad:
     ```
+
+Basically what we've added is a 3rd service/container called `hello-world-app`.  Since this will be based on a docker image build that we've not necessarily published (or even ever done a `docker build` on), we are defining it as its own `build`, rather than with an `image`.  You can see in the yaml that we are pointing the build context to our current directory (`hanadev`) and specifying the Dockerfile to the subdirectory (`hello-world-app`) where our Dockerfile and source code are located.
+
+This definition basically tells Docker Compose that we want to build our image for this Stack.  Once our image is less prone to changes, we can always redefine this yaml to point to a finalized Docker Image with a tag name, etc at a later time.
+
+# Running and Testing
+1. To run our updated Docker Compose Stack, we can run the following command from the `hanadev` directory:
+
+    ```bash
+    docker-compose build && docker-compose up
+    ```
+    **Note** In theory, you should be able to just type `docker compose up`, however I experienced fits where Docker Compose would not always automatically rebuild the image as I was incrementally making changes to my Dockerfile and source files.  Basically I follow the rule of thumb where if I know I've changed the source and/or the app's Dockerfile (image), then I just do `docker-compose build` first.
     
-    Basically, this Docker Compose file defines 2 containers:
-    
-    1. HANA Express
-    2. SQLPad, a simple, lightweight container that has the ability to connect to SAP HANA without having to fiddle with any driver installations.  This will serve as our first test to ensure that we can connect to our HANA Express DB.
-    
-    ***Note:***
-    
-    Since both SQLPad and HANA Express are in the same default Docker-Compose Network, we do not need to expose the standard HANA Express Docker Ports (39017, etc) since at this time, we will be using SQL Pad to interact directly with HANA Express inside the network.  What we will only be exposing is the SQLPad Port (`8899`)
-    
-5. In your Terminal, cd to your `hanadev` folder.
+    What you should now see after a minute or 2 of console spam is something like this at the end (as the hxehost container will be the last to spin up):
     
     ```bash
-    cd hanadev
+    hxehost_1          |     (Pre start) Hook /hana/hooks/pre_start/320_config_cert: 0s
+    hxehost_1          |     (Pre start) Hook /hana/hooks/pre_start/330_custom_afls: 0s
+    hxehost_1          |     Pre start: 0s
+    hxehost_1          |     HANA startup: 62s
+    hxehost_1          |     (Post start) Hook /hana/hooks/post_start/201_hxe_optimize: 0s
+    hxehost_1          |     (Post start) Hook /hana/hooks/post_start/203_set_hxe_info: 0s
+    hxehost_1          |     Post start: 0s
+    hxehost_1          |     Overall: 64s
+    hxehost_1          | Ready at: Fri May 17 18:34:09 UTC 2019
+    hxehost_1          | Startup finished!
     ```
-6. Set the environment variable `HXE_MASTER_PASSWORD` to your desired password.  Example:
     
+2.  Leaving this Terminal window open, open a second Terminal window in Cloud 9 and type the following command:
+
     ```bash
-    export HXE_MASTER_PASSWORD=HXEHana1
+    curl -X POST http://localhost:3333/api/overview
     ```
-7. Run your Docker Compose stack (first time)
     
-    ```bash
-    docker-compose up
+    What you should get back is some JSON from our backend app:
+
+    ```json
+    {
+      "backend_information": {
+          "server": "hxehost:39017",
+          "user": "SYSTEM"
+      },
+      "M_SYSTEM_OVERVIEW": [
+        {
+          "KEY": "Instance ID",
+          "VAL": "HXE"
+        },
+        {
+          "KEY": "Instance Number",
+          "VAL": "90"
+        },
+        {
+          "KEY": "Distributed",
+          "VAL": "No"
+        },
+        {
+          "KEY": "Version",
+          "VAL": "2.00.036.00.1547699771 (fa/hana2sp03)"
+        },
+        {
+          "KEY": "Platform",
+          "VAL": "SUSE Linux Enterprise Server 12 SP2"
+        },
+        {
+          "KEY": "All Started",
+          "VAL": "No"
+        },
+        {
+          "KEY": "Min Start Time",
+          "VAL": "2019-05-17 18:24:57.583"
+        },
+        {
+          "KEY": "Max Start Time",
+          "VAL": "2019-05-17 18:24:57.583"
+        },
+        {
+          "KEY": "Memory",
+          "VAL": "Physical 7.79 GB, Swap 0.48 GB, Used 1.05"
+        },
+        {
+          "KEY": "CPU",
+          "VAL": "Available 2, Used -0.02"
+        },
+        {
+          "KEY": "Data",
+          "VAL": "Size 19.5 GB, Used 14.2 GB, Free 27 %"
+        },
+        {
+          "KEY": "Log",
+          "VAL": "Size 19.5 GB, Used 14.2 GB, Free 27 %"
+        },
+        {
+          "KEY": "Trace",
+          "VAL": "Size 19.5 GB, Used 14.2 GB, Free 27 %"
+        },
+        {
+          "KEY": "Alerts",
+          "VAL": "2 High, "
+        }
+      ]
+    }
     ```
-8. At this point, your Terminal will start pulling Docker images and spamming you with log progress.  On a `m4.large` instance, this process should take about 6-7 minutes.  You will know when it is complete when you see a tail of the log with something similar below:
-    ```bash
-    hxehost_1  | Duration of start operations ...
-    hxehost_1  |     (Pre start) Hook /hana/hooks/pre_start/010_license_agreement: 0s
-    hxehost_1  |     (Pre start) Hook /hana/hooks/pre_start/110_clean_hdbdaemon_status: 0s
-    hxehost_1  |     (Pre start) Hook /hana/hooks/pre_start/120_clean_pid_files: 0s
-    hxehost_1  |     (Pre start) Hook /hana/hooks/pre_start/130_update_clean_wdisp: 0s
-    hxehost_1  |     (Pre start) Hook /hana/hooks/pre_start/310_init_ssfs: 41s
-    hxehost_1  |     (Pre start) Hook /hana/hooks/pre_start/320_config_cert: 1s
-    hxehost_1  |     (Pre start) Hook /hana/hooks/pre_start/330_custom_afls: 0s
-    hxehost_1  |     (Pre start) Prep persistence: 46s
-    hxehost_1  |     Pre start: 89s
-    hxehost_1  |     HANA startup: 43s
-    hxehost_1  |     (Post start) Tenant creation: 268s
-    hxehost_1  |     (Post start) License import: 0s
-    hxehost_1  |     (Post start) Hook /hana/hooks/post_start/201_hxe_optimize: 7s
-    hxehost_1  |     (Post start) Hook /hana/hooks/post_start/203_set_hxe_info: 0s
-    hxehost_1  |     Post start: 280s
-    hxehost_1  |     Overall: 413s
-    hxehost_1  | Ready at: Thu May 16 17:03:31 UTC 2019
-    hxehost_1  | Startup finished!
-    ```
-    Congratulations!  You now have a Stack running HANA Express and SQLPad!
-
-9.  At this point, we can stop the stack, by pressing `Control + C`:
     
-    ```bash
-    Gracefully stopping... (press Ctrl+C again to force)
-    Stopping hanadev_sqlpad_1  ... done
-    Stopping hanadev_hxehost_1 ... done
-    ```
-10. Now that our stack has successfully started and stopped, let's take a quick look at how much space this has taken:
+    If you made it this far, congratulations!  You've created a containerized backend service application that we'll build out and use to feed a prettier web front end.  And, since it's containerized, you'll be able to deploy easily on anything running Docker!  (Well, besides a Raspberry Pi, dang ARM architecture....)
     
-    ```bash
-    docker system df
-    ```
-    This should return a readout similar to below:
-    ```
-    TYPE                TOTAL               ACTIVE              SIZE                RECLAIMABLE
-    Images              7                   2                   4.498GB             1.319GB (29%)
-    Containers          2                   0                   67.7kB              67.7kB (100%)
-    Local Volumes       1                   1                   3.247GB             0B (0%)
-    Build Cache         0                   0                   0B                  0B
-    ```
-    As we can see, the base footprint needed to run HANA Express in this container is around 3.25 GB.  Pretty small, not too bad!
-    
-11. Also, if you want to see how much room is left on your Cloud 9 instance, you can type `df -h /`:
-    
-    ```bash
-    Filesystem      Size  Used Avail Use% Mounted on
-    /dev/xvda1       20G   12G  8.0G  60% /
-    ```
-    As you can see, we have plenty of play area left (8GB) even with HANA Express container running!
-
-# Stopping and Starting
-
-This section explains how to start and stop your stack.
-
-## Running the Stack
-
-After successfully setting up the stack, to run it again in the background, you want to run it "detached".  This allows you to close your terminal session out and your stack will keep running (make sure you are in your `hanadev` directory when doing so):
-
-```bash
-docker-compose up -d
-```
-
-## Stopping the Stack
-
-In order to stop your stack, you will need to issue the following command to stop it (make sure you are in your `hanadev` directory when doing so):
-    
-```bash
-docker-compose down
-```
-
-# Exposing SQLPad to the outside world
-Now that we know that we have a working stack, we need to expose port `8899` in order to use the SQLPad application.  First, we must see what AWS gave our Cloud 9 IDE as a public IP.  There are multiple ways to find this out.
-
-- Check your EC2 Dashboard on AWS and look for the External IP
-- Lazy way without leaving Cloud 9
-
-    From a Terminal in Cloud 9, simply type `curl http://169.254.169.254/latest/meta-data//public-ipv4` and note the IP address.
-
-The lazy way is nice, since this saves you a trip to the EC2 console as you develop off and on, and your IP changes.  However for this first time, we'll need to make the trip to the EC2 Console and select out EC2 Instance assigned to the Cloud 9 IDE.
-
-1. From your EC2 Console, click on the autogenerated Security Group named something similar to `aws-cloud9-dev-abc732487cbada-InstanceSecurityGroup-322138957189`.
-2. You will be taken to the Security Group section in the EC2 Dashboard.  Right-click on the selected rule and click **Edit inbound rules**.
-3. Click on **Add Rule** and populate the following fields:
-    
-    |Property|Value|
-    |--------|-----|
-    |Port Range|`8899`|
-    |Source|`0.0.0.0/0`|
-    |Description|`SQLPad Web Interface`|
-    
-4. We are now ready to test SQLPad!  With your IP address in hand, in a browser window navigate to `http://1.2.3.4:8899` where `1.2.3.4` is the IP address.
-    **Note** If you are not greeted with a SQLPad page, make sure your Docker Compose stack is running!  (`docker-compose up -d` from `hanadev` directory)
-5. If you see the SQLPad login page, congratulations!  Click on the **Sign Up** link and register.  (The first to register becomes administrator, so hurry!  :))
-
-# Using SQLPad
-## Connecting to your HANA Express DB
-Now that you have registered to your SQLPad application, you will want to create an initial connection to your HANA Express database.
-
-1. At the top right of your SQLPad page, click you your user name -> and click **Connections**
-2. Click **New Connection** and populate the following fields:
-
-    | Property | Value |
-    | --- | --- |
-    | Connection Name | `HXE` |
-    | Database Driver | `SAP HANA` |
-    | Host/Server/IP Address | `hxehost` |
-    | Port (e.g. 39015) | `39017` |
-    | Database Username | `SYSTEM` |
-    | Database Password | `YourPassword` |
-    | Tenant | `HXE` |
-    
-3. Click **Test** and assuming you get a green "Test Successful" message, click **Save**
-
-## Selecting some data
-
-1. In SQLPad, click **New Query** on the top left.
-2. Ensure that the `HXE` connection is selected in the dropdown, and paste in the following SQL Command and then click **Run**:
-    
-    ```sql
-    SELECT TOP 10 TABLE_NAME, RECORD_COUNT, TABLE_SIZE FROM M_TABLES ORDER BY TABLE_SIZE DESC;
-    ```
-
-3. Assuming that the stars have aligned and this guide made sense and you've followed all the steps, you should get a query result back at the bottom in a table format.
-4. CONGRATULATIONS!  Pat yourself on the back, and stay tuned for the next part of this series which will build upon this stack to include a simple NodeJS container running a module that will read some data from HANA Express.
-    
-
-# Cleaning up/Starting Over
-In the event that you've completely botched your Stack and need to start over, fret not.  You can remove the mess at any time easily!
-## To remove your persistent volumes from the stack
-From the `hanadev` directory, type:
-```bash
-docker-compose down -v
-```
+    Stay tuned for the next part where we shift gears briefly to get the frontend up and running and test this same backend call and put a UI on top of it.
