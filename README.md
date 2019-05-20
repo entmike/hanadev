@@ -2,6 +2,7 @@
 
 1. [Develop Simple on HANA Express in AWS Cloud 9](https://blogs.sap.com/2019/05/16/develop-simple-on-hana-express-in-aws-cloud-9/)
 2. [Develop Simple on HANA Express in AWS Cloud 9 Part 2 – The Backend App](https://blogs.sap.com/2019/05/17/develop-simple-on-hana-express-in-aws-cloud-9-part-2-the-backend-app/)
+3. [Develop Simple on HANA Express in AWS Cloud 9 Part 3 – The Frontend App](https://blogs.sap.com/?p=820837&preview=true&preview_id=820837)
 
 ### Github Repository for this part:
 https://github.com/entmike/hanadev/tree/Part3
@@ -128,19 +129,18 @@ As I mentioned in Part 1, it's been a long time since playing in web frameworks.
 10. This page serves as a launching point to run vue-cli tasks that you can either opt to use this page to run, or if you are more of a CLI person, you can run from a terminal if you so wish.  For now though, let's click on **serve** and then **Run task**.
 
 11. Once the green checkbox appears, we know that our Vue app is running.  Click on the **Output** button to monitor the status of our serve task.  You should see something similar to the following:
-
-    ```bash
-     40% building 120/121 modules 1 active ...dex=0&id=469af010&scoped=true&lang 40% building 120/122 modules 2 active ...node_modules/css-loader/lib/css-ba 40% building 121/122 modules 1 active ...node_modules/css-loader/lib/css-ba 77% advanced chunk optimization SplitChunksPlugin DONE  Compiled successfully in 3653ms17:04:28
     
-                                                                  
-    
-      App running at:
-      - Local:   http://localhost:8081/ 
-      - Network: http://172.16.0.99:8081/
-    
-      Note that the development build is not optimized.
-      To create a production build, run npm run build.
     ```
+        
+      App running at:
+        Local:   http://localhost:8081/ 
+        Network: http://172.16.0.99:8081/
+    
+    
+    Note that the development build is not optimized.
+    To create a production build, run npm run build.
+    ```
+
 12.  Since we are running in Cloud 9 IDE, the IP address reported back and hostname are not accessible from your browser.  You will want to substitute your Cloud 9 External IDE here.  You also will need to expose port `80xx` (whichever one is mentioned in the output) in our Cloud 9 EC2 instance in order to access this application easier.  Refer to steps in Part 1 if you do not know how to do this.  I'd recommend opening up ports `8080` through `8085` as sometimes we may be running more than one app at once and it will save you a trip to the EC2 Dashboard later on.
 
 13.  After noting the `80xx` port, navigate to `http://[your cloud 9 external ip]:80xx`.
