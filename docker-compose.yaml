@@ -1,0 +1,21 @@
+version: '2'
+    
+services:
+    
+  sqlpad:
+    image: sqlpad/sqlpad
+    volumes:
+      - sqlpad:/var/lib/sqlpad
+    ports:
+      - "8899:3000"
+          
+  hxehost:
+    image: store/saplabs/hanaexpress:2.00.036.00.20190223.1
+    hostname: hxe
+    volumes:
+      - hana-express:/hana/mounts
+    command: --agree-to-sap-license --master-password ${HXE_MASTER_PASSWORD}
+    
+volumes:
+  hana-express:
+  sqlpad:
