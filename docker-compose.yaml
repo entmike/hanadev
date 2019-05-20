@@ -7,11 +7,13 @@ services:
       context: .
       dockerfile: ./hello-world-app/Dockerfile
     ports:
-      - "3333:9999"
+      # - "3333:9999" No longer needed we are using Nginx
+      # Reroute Nginx listening on Port 80 over to 8080 which we've already exposed in EC2
+      - "8080:80"
     environment:
-      - HANA_UID=${HANA_UID}
-      - HANA_PWD=${HXE_MASTER_PASSWORD}
-      - HANA_SERVERNODE=${HANA_SERVER} 
+      - HANA_UID=${HANA_APP_UID}
+      - HANA_PWD=${HANA_APP_PWD}
+      - HANA_SERVERNODE=${HANA_SERVER}
 
   sqlpad:
     image: sqlpad/sqlpad
