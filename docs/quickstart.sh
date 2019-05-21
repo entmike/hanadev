@@ -51,3 +51,7 @@ npm i
 
 # Make production build
 npm run build
+
+# Build Docker Images
+cd hanadev
+docker-compose build
