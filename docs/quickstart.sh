@@ -17,8 +17,8 @@ npm i -g @sap/hana-client
 # Install Vue CLI
 npm i -g @vue/cli
 
-# Clone Part 4 Branch of Repo
-git clone -b Part4 https://github.com/entmike/hanadev.git
+# Clone Part 3 Branch of Repo
+git clone -b Part3 https://github.com/entmike/hanadev.git
 
 cd hanadev
 
