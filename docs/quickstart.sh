@@ -41,5 +41,13 @@ cat > hello-world-app/frontend/.env.development.local << EOL
 VUE_APP_HANA_APP_BACKEND=http://`curl http://169.254.169.254/latest/meta-data//public-ipv4`:3333
 EOL
 
-cd hello-world-app/frontend
-npm build production
+# Install npm libs for backend app
+cd hello-world-app/backend
+npm i
+
+# Install npm libs for frontend app
+cd ../frontend
+npm i
+
+# Make production build
+npm run build
