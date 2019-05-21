@@ -6,8 +6,10 @@ services:
     build: 
       context: .
       dockerfile: ./hello-world-app/Dockerfile
+    volumes:
+      - shared:/shared-files
     ports:
-      # - "3333:9999" No longer needed we are using Nginx
+      - "3333:9999" # No longer needed we are using Nginx
       # Reroute Nginx listening on Port 80 over to 8080 which we've already exposed in EC2
       - "8080:80"
     environment:
@@ -27,8 +29,10 @@ services:
     hostname: hxe
     volumes:
       - hana-express:/hana/mounts
+      - shared:/shared-files
     command: --agree-to-sap-license --master-password ${HXE_MASTER_PASSWORD}
     
 volumes:
   hana-express:
   sqlpad:
+  shared:

@@ -20,6 +20,8 @@ COPY /hello-world-app/backend /app/backend
 COPY /hello-world-app/frontend/dist /app/frontend
 # Copy startup.sh script
 COPY ./hello-world-app/startup.sh /app/startup.sh
-
+# Create upload directory
+RUN mkdir -p /app/uploads
+# Start Command
 WORKDIR /app
 CMD ./startup.sh

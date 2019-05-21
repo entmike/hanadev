@@ -13,7 +13,9 @@ if(!process.env.HANA_SERVERNODE
     HANA_PWD\tYour HANA Password`);
 }else{
     let overviewRouter = require('./api/overview');
+    let uploadRouter = require('./api/upload');
     app.use('/api/overview', overviewRouter);
+    app.use('/api/upload', uploadRouter);
     app.use(bodyParser.json());
     app.use(bodyParser.urlencoded({
         extended : true
