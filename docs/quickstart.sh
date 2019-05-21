@@ -53,5 +53,5 @@ npm i
 npm run build
 
 # Build Docker Images
-cd hanadev
+cd ../../
 docker-compose build
