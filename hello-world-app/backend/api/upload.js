@@ -24,9 +24,11 @@ router.post('/',cors(),(req,res)=>{
             console.log('Fields', fields);
             console.log('File', file);
             let results = [];
+            let metadata = {};
             fs.createReadStream(file.file.path)
                 .pipe(csv())
                 .on('headers', (headers) => {
+                    for(header of headers) metadata[header] = {};
                     console.log(`Headers: ${headers}`)
                 })
                 .on('data', (data) => results.push(data))

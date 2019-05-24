@@ -6,8 +6,8 @@ LABEL Maintainer="Mike Howles <mike.howles@gmail.com>"
 # Install nginx to handle backend and frontend apps
 RUN apt-get update && apt-get install -y nginx
 
-# Add SAP HANA Client NPM package from SAP's npm repository
-RUN npm config set @sap:registry https://npm.sap.com && npm i -g @sap/hana-client
+# Set npm repo for @sap to https://npm.sap.com
+RUN npm config set @sap:registry
 
 # Set the global NPM path Environment variable
 ENV NODE_PATH /usr/local/lib/node_modules
