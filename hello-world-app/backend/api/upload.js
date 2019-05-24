@@ -14,7 +14,7 @@ router.options('*',cors());
 
 router.post('/',cors(),(req,res)=>{
     let form = new formidable.IncomingForm();
-    form.uploadDir = '/app/uploads';
+    form.uploadDir = process.env.UPLOAD_DIR;
     form.parse(req, (err, fields, file) => {
         if (err) {
           console.error('Error', err)
@@ -28,17 +28,54 @@ router.post('/',cors(),(req,res)=>{
             fs.createReadStream(file.file.path)
                 .pipe(csv())
                 .on('headers', (headers) => {
-                    for(header of headers) metadata[header] = {};
+                    for(let header of headers) metadata[header] = {
+                        typeTest : {
+                            float : true,
+                            int : true,
+                            // date : true,     // Too hard for me
+                            boolean : true
+                        }
+                    };
                     console.log(`Headers: ${headers}`)
                 })
-                .on('data', (data) => results.push(data))
-                .on('end', () => {
-                    console.log(`${results.length} rows parsed.`);
+                .on('data', (data) => {
+                    for(let header in metadata){
+                        let metaField = metadata[header];
+                        let field = data[header];
+                        let test = parseFloat(field);
+                        // Boolean checks
+                        if(field != undefined && (field.toLowerCase() != "true" && field.toLowerCase() != "false")){
+                            metaField.typeTest.boolean = false;
+                        }
+                        // Numeric checks
+                        let isNumber = !isNaN(parseFloat(field)) && !isNaN(field - 0)
+                        if(!isNumber){
+                            metaField.typeTest.float = false;
+                            metaField.typeTest.int = false;
+                        }else{
+                            if(parseFloat(field) != parseInt(field)) metaField.typeTest.int = false;
+                        }
+                    }
+                    results.push(data)
                 })
-            res.end(JSON.stringify({
-                code : 0,
-                msg : `File ${file.file.name} uploaded as ${file.file.path}.`
-            },2,null));
+                .on('end', () => {
+                    for(let header in metadata){
+                        let metaField = metadata[header];
+                        let typeTest = metaField.typeTest;
+                        metaField.type = "String";  // default
+                        if(typeTest.float) metaField.type = "Float"
+                        if(typeTest.float && typeTest.int) metaField.type = "Integer"
+                        if(typeTest.boolean) metaField.type = "Boolean";
+                        delete metaField.typeTest;
+                    }
+                    console.log(`${results.length} rows parsed.`);
+                    console.log(metadata);
+                    res.end(JSON.stringify({
+                        code : 0,
+                        msg : `File ${file.file.name} uploaded.  ${results.length} rows processed.`,
+                        metadata : metadata
+                    },2,null));
+                })
         }else{
             res.end(JSON.stringify({
                 code : 1,

@@ -2,7 +2,8 @@ const express = require('express');
 const app = express();
 const bodyParser = require('body-parser');
 const hana = require('@sap/hana-client');
-require('dotenv').config()
+require('dotenv').config();
+
 const port = process.env.PORT || 9999;
 
 if(!process.env.HANA_SERVERNODE
@@ -10,7 +11,8 @@ if(!process.env.HANA_SERVERNODE
     console.error(`Set the following environment variables:
     HANA_SERVERNODE\tYour HANA hostname:port
     HANA_UID\tYour HANA User
-    HANA_PWD\tYour HANA Password`);
+    HANA_PWD\tYour HANA Password
+    UPLOAD_DIR\tUpload directory for user CSV Uploads`);
 }else{
     let overviewRouter = require('./api/overview');
     let uploadRouter = require('./api/upload');

@@ -1,5 +1,5 @@
 <template>
-    <v-toolbar app color="blue darken-4" dark>
+    <v-toolbar app color="green darken-3" dark>
         <v-toolbar-title>{{appTitle}}</v-toolbar-title>
         <template v-for="(item,index) in items">
             <v-btn v-if="typeof item.link === 'undefined'" :key=index flat :to="'/' + item.title">{{item.title}}</v-btn>
@@ -11,7 +11,7 @@
           </template>
         </upload-btn>
         <v-spacer />
-        <v-chip color="primary" label outline text-color="white">{{systemInformation.user}}@{{systemInformation.server}}:{{systemInformation.port}}</v-chip>
+        <v-chip label outline text-color="white">{{systemInformation.user}}@{{systemInformation.server}}</v-chip>
     </v-toolbar>
 </template>
 
@@ -37,7 +37,7 @@ export default {
                 'Content-Type': 'multipart/form-data'
             }
         }).then(res=>{
-            res;
+            console.log(res);
         });
       }
     },
