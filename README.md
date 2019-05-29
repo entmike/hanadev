@@ -3,608 +3,493 @@
 1. [Develop Simple on HANA Express in AWS Cloud 9](https://blogs.sap.com/2019/05/16/develop-simple-on-hana-express-in-aws-cloud-9/)
 2. [Develop Simple on HANA Express in AWS Cloud 9 Part 2 – The Backend App](https://blogs.sap.com/2019/05/17/develop-simple-on-hana-express-in-aws-cloud-9-part-2-the-backend-app/)
 3. [Develop Simple on HANA Express in AWS Cloud 9 Part 3 – The Frontend App](https://blogs.sap.com/?p=820837&preview=true&preview_id=820837)
+4. [Develop Simple on HANA Express in AWS Cloud 9 Checkpoint – How to Catch Up/Restart](https://blogs.sap.com/2019/05/21/develop-simple-on-hana-express-in-aws-cloud-9-checkpoint-how-to-catch-uprestart/)
+5. [Develop Simple on HANA Express in AWS Cloud 9 - An HDI Container inside... a Docker Container?]()
 
 ### Github Repository for this part:
-https://github.com/entmike/hanadev/tree/Part3
+https://github.com/entmike/hanadev/tree/PartHDI
 
 # Overview
-In the third part of this series, I will cover creating a basic Vue frontend to consume our backend service that we created in Part 2.
+In this part of the series, I will cover creating an HDI Container in our HANA Express Container without XSA.  This is many thanks to Thomas Jung's [post here](https://blogs.sap.com/2019/04/16/developing-with-hana-deployment-infrastructure-hdi-without-xsacf-or-web-ide/comment-page-1/#comment-461218).  But why?  Why not, I say!  Let's demonstrate not needing Web IDE or XSA for HDI Container development!
 
 ## Prerequisites
 
-- Cloud 9 set up and configured as described in [Part 1](https://blogs.sap.com/2019/05/16/develop-simple-on-hana-express-in-aws-cloud-9/)
-- Backend created as described in [Part 2](https://blogs.sap.com/2019/05/17/develop-simple-on-hana-express-in-aws-cloud-9-part-2-the-backend-app/)
+- Follow Parts 1 through 3 in the Series, or catch up quickly [here](https://blogs.sap.com/2019/05/21/develop-simple-on-hana-express-in-aws-cloud-9-checkpoint-how-to-catch-uprestart/)
 
-# Update the .env file
-In part 2, we made use of the `SYSTEM` user to perform a quick test of our backend app.  In a real world use case, we of course do not want to do this.  So we will designate some new environment variables to specify a new application user and password.
+## Add some DB Support Files
 
-```
-HXE_MASTER_PASSWORD=HXEHana1
-HANA_APP_UID=APPUSER
-HANA_APP_PWD=SomeSecretPassword
-HANA_SERVER=hxehost:39017
-HANA_APP_BACKEND=/backend
-```
+In this section, we'll copy over some supporting script files based off of the helpful blog from Thomas Jung that he wrote about on the SAP Community Blogs that you can read about here:
 
-# Update the docker-compose.yaml file
+https://blogs.sap.com/2019/04/16/developing-with-hana-deployment-infrastructure-hdi-without-xsacf-or-web-ide/
 
-Open the `docker-compose.yaml` file under `/hanadev` and update the contents as follows:
+The SQL and script files have been slightly modified to work in our containerized HANA Express environment, however the majority of the code is courtesty of Thomas Jung.
 
-```yaml
-version: '2'
-    
-services:
-    
-  hello-world-app:
-    build: 
-      context: .
-      dockerfile: ./hello-world-app/Dockerfile
-    ports:
-      - "3333:9999"
-    environment:
-      - HANA_UID=${HANA_APP_UID}
-      - HANA_PWD=${HANA_APP_PWD}
-      - HANA_SERVERNODE=${HANA_SERVER}
-
-  sqlpad:
-    image: sqlpad/sqlpad
-    volumes:
-      - sqlpad:/var/lib/sqlpad
-    ports:
-      - "8899:3000"
-          
-  hxehost:
-    image: store/saplabs/hanaexpress:2.00.036.00.20190223.1
-    hostname: hxe
-    volumes:
-      - hana-express:/hana/mounts
-    command: --agree-to-sap-license --master-password ${HXE_MASTER_PASSWORD}
-    
-volumes:
-  hana-express:
-  sqlpad:
-```
-
-Basically, we've only changed the `hello-world-app` environment variable mapping of `HANA_UID` and `HANA_PWD` to point to our new `HANA_APP_UID` and `HANA_APP_PWD` variables in our `.env` files.
-
-# Create the Application User
-
-1. Let's briefly start up our HANA Express DB and SQLPad by typing the following from the `hanadev` directory in a terminal window.
-    
-    ```bash
-    docker-compose up
-    ```
-
-2. Open up SQLPad from `http://[cloud 9 external IP]:8899` and log in with the user you created.  Refer to Part 1 if you need a reminder on how to log in.
-
-3. Create a new SQL statement as follows and click **Run**
-    
-    ```sql
-    CREATE USER APPUSER PASSWORD SomeSecretPassword NO FORCE_FIRST_PASSWORD_CHANGE;
-    ```
-4. That's it.  We can now stop our Stack by pressing `Control + C` in the terminal window that you typed `docker-compose up`.
-
-5. Let's start back up our stack one last time and make sure our backend app is now running as our new application user.  Run `docker-compose-up -d` and wait about 60 seconds for HANA Express to start up.
-
-6. Next, type `curl -X POST http://localhost:3333/api/overview | grep user`.  You should get a one line back of the JSON output similar to below:
+1. From a Terminal window, type the following to quickly copy the files:
 
     ```bash
-      % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
-                                     Dload  Upload   Total   Spent    Left  Speed
-    100  1202  100  1202    0     0  52260      0 --:--:-- --:--:-- --:--:-- 52260
-    "user": "APPUSER"
+    cd ~/environment/hanadev/
+    wget https://entmike.github.io/hanadev/runhxe.sh
+    chmod +x runhxe.sh
+    mkdir db-scripts
+    cd db-scripts
+    wget https://entmike.github.io/hanadev/db-scripts/create_container.sql
+    wget https://entmike.github.io/hanadev/db-scripts/drop_container.sql
+    wget https://entmike.github.io/hanadev/db-scripts/createContainer.sh
+    wget https://entmike.github.io/hanadev/db-scripts/dropContainer.sh
+    chmod +x createContainer.sh
+    chmod +x dropContainer.sh
     ```
-    Congratulations!  You've successfully modified the backend app to use an application user.
 
-# Creating a Vue Project
-
-As I mentioned in Part 1, it's been a long time since playing in web frameworks.  While this can be a bit of a divisive Holy War topic, for me, I've gotten particularly fond of Vue.  If you are more of an Angular or React person, feel free to replace these steps with your favorite frontend tool and read no further.  If you'd like to create a super simple Vue app, read on.
-
-1. From a terminal window in Cloud 9, type `npm i -g @vue/cli`.  This will install Vue and the Vue CLI.
-
-2. Next, since I'm not a big CLI guy, let's start up the GUI for the CLI by typing `vue ui -p 8080` from the `hanadev/hello-world-app` directory (important.)  Once you see the status in your terminal below, proceed to the next step.
+2. Next, we need to start our HANA Express container.  (Not the whole Docker Compose Stack) In a second Terminal Window, type the following:
     
     ```bash
-    ec2-user:~/environment/hanadev (Part3) $ vue ui -p 8080
-      Starting GUI...
-      Ready on http://localhost:8080
+    ~/environment/hanadev/runhxe.sh
     ```
 
-3. In the Cloud 9 toolbar, click **Preview** -> **Preview Running Application**.  A browser window inside your Cloud 9 IDE should open.
-
-4. Click the **Create** button and then click **Create a new project here**.
-
-5. For **Project Folder**, name it `frontend`.  Click **Next**.
-
-6. For **preset**, leave **Default preset** select and click **Create Project**.  Vue CLI will begin to generate the boilerplate project files under the `hanadev/hello-world-app/frontend` folder.  After a few moments, you should arrive at a screen saying "Welcome to your new project!".
-
-7. On the left edge of the page, find the puzzle piece **Plugins icon** and click it.  Then, click the **+ Add plugin** button at the top-left.
-
-7. We are going to install 2 plugins.  A routing plugin and a UI plugin.  For the router plugin, there should be a **Add vue-router** button placed prominently at the top of the plugins page.  Click it, and then click **Continue**.  Then don't forget to click **Finish installation**
-
-8. After vue-router finishes installing, search for `vue-cli-plugin-vuetify`.  Click on the matching search result and click on **Install vie-cli-plugin-vuetify**. 
-
-9. After the installation is complete, click on the **Tasks** icon on the left edge of the page.  (Clipboard icon.)
-
-10. This page serves as a launching point to run vue-cli tasks that you can either opt to use this page to run, or if you are more of a CLI person, you can run from a terminal if you so wish.  For now though, let's click on **serve** and then **Run task**.
-
-11. Once the green checkbox appears, we know that our Vue app is running.  Click on the **Output** button to monitor the status of our serve task.  You should see something similar to the following:
+    This command will start up just your HANA Express DB container and expose port `39017` to your Cloud 9 environment, as well as map the container's `/scripts` directory to your Cloud 9's `db-scripts` folder.  We are doing this so that we can demonstrate building an HDI container inside a Docker Container.
     
-    ```
-        
-      App running at:
-        Local:   http://localhost:8081/ 
-        Network: http://172.16.0.99:8081/
-    
-    
-    Note that the development build is not optimized.
-    To create a production build, run npm run build.
-    ```
-
-12.  Since we are running in Cloud 9 IDE, the IP address reported back and hostname are not accessible from your browser.  You will want to substitute your Cloud 9 External IDE here.  You also will need to expose port `80xx` (whichever one is mentioned in the output) in our Cloud 9 EC2 instance in order to access this application easier.  Refer to steps in Part 1 if you do not know how to do this.  I'd recommend opening up ports `8080` through `8085` as sometimes we may be running more than one app at once and it will save you a trip to the EC2 Dashboard later on.
-
-13.  After noting the `80xx` port, navigate to `http://[your cloud 9 external ip]:80xx`.
-
-14.  If you get back a `Welcome to Your Vue.js App` congratulations!  We are ready to start coding.
-
-# Modifying your Vue Project
-
-Now that we have created the boilerplate Vue Project, we are ready to make some changes to the application.  While I am not a Vue expert, and for sake of brevity, I won't be explaining everything that's going on.  There are many, many great Vue tutorials online that I'd highly suggest you look for if you are interested in Vue.
-
-1. In your Cloud 9 IDE, locate the `/hanadev/hello-world-app/frontend` folder.  This is where all your frontend code has now been generated.  Modify/Create the following files.
-
-2. **Create Environment Variable files**
-    
-    1. `/hello-world-app/frontend/.env.production`:
-    
-        This file will be used for our final productin build.  The `VUE_APP_HANA_APP_BACKEND` variable tells the frontend app where to issue backend requests to.  For production, we'll handle this with Nginx a bit later on.
-        ```
-        VUE_APP_HANA_APP_BACKEND=/backend
-        ```
-    2. `/hello-world-app/frontend/.env.development.local`
-        
-        **NOTE:** Be sure to add your Cloud 9 External IP address in the placeholder below.  For development, we'll want to hit our running Docker stack running in Cloud 9.
-        
-        ```
-        VUE_APP_HANA_APP_BACKEND=http://[your cloud 9 external ip]:3333
-        ```
-
-3. **Modify** `/hello-world-app/frontend/src/main.js`
-
-    ```javascript
-    import Vue from 'vue'
-    import './plugins/vuetify'
-    import App from './App.vue'
-    
-    import router from './router'
-    
-    if(!process.env.VUE_APP_HANA_APP_BACKEND){
-      alert("VUE_APP_HANA_APP_BACKEND environment variable not set.  Please set your environment and restart this frontend server.")
-    }else{
-      Vue.config.productionTip = false
-      new Vue({
-        router,
-        render: h => h(App)
-      }).$mount('#app')
-    }
-    ```
-
-4. **Modify/Create** `/hello-world-app/frontend/src/router.js`
-
-    ```javascript
-    import Vue from 'vue'
-    import Router from 'vue-router'
-    import Overview from './views/Overview.vue'
-    
-    Vue.use(Router)
-    
-    export default new Router({
-      routes: [
-        {
-          path: '/',
-          name: 'Overview',
-          component: Overview
-        }
-      ]
-    })
-    ```
-
-5. **Modify** `/hello-world-app/frontend/src/App.vue`
-
-    ```xml
-    <template>
-      <v-app dark>
-        <AppNav :systemInformation="results.backend_information"/>
-        <v-content transition="slide-x-transition">
-          <router-view />
-        </v-content>
-      </v-app>
-    </template>
-    <script>
-      import AppNav from '@/AppNav';
-      import axios from 'axios';
-      export default {
-        name: 'App',
-        components: {
-            AppNav
-        },
-        data () {
-          return {
-            results: {
-              backend_information : {
-                user : 'dummy'
-              }
-            }
-          };
-        },
-        methods : {
-          getData (){
-            axios.post(process.env.VUE_APP_HANA_APP_BACKEND + '/api/overview/',{ }).then(res=>{
-              if(res.data){
-                this.results = res.data;
-                this.systemInformation = res.data.backend_information;
-                // console.log(this.results);
-              }else{
-                alert(JSON.stringify(res));
-                this.results = {};
-              }
-            }, err=> {
-              alert(JSON.stringify(err.response.data));
-            }).catch(err=>{
-              alert(`An error occured communicating with the backend.
-              ${err}`);
-            })
-          },
-        },
-        mounted(){
-            this.getData();
-        }
-    };
-    </script>
-    ```
-
-6. **Create** `/hello-world-app/frontend/src/AppNav.vue`
-
-    ```xml
-    <template>
-        <v-toolbar app color="blue darken-4" dark>
-            <v-toolbar-title>{{appTitle}}</v-toolbar-title>
-            <template v-for="(item,index) in items">
-                <v-btn v-if="typeof item.link === 'undefined'" :key=index flat :to="'/' + item.title">{{item.title}}</v-btn>
-                <v-btn v-else :key=index flat :to="'/' + item.link">{{item.title}}</v-btn>
-            </template>
-            <v-spacer />
-            <v-chip color="primary" label outline     text-color="white">{{systemInformation.user}}@{{systemInformation.server}}:{{systemInformation.port}}</v-chip>
-        </v-toolbar>
-    </template>
-    
-    <script>
-    export default {
-        name: 'AppNav',
-        props : {
-            systemInformation : Object
-        },
-        data(){
-            return{
-                appTitle: 'HANA Sandbox',
-                drawer: false,
-                items: [
-                    { title: 'Overview',link: '' }
-                ]
-            };
-        }
-    };
-    </script>
-    
-    <style scoped>
-    </style>
-    ```
-
-7. **Delete** any files (`About.vue`, `Home.vue` etc.) under `/hello-world-app/frontend/src/views`
-
-8. **Create** `/hello-world-app/frontend/src/views/Overview.vue`
-    
-    ```xml
-    <template>
-      <div>
-        <v-list two-line>
-          <template v-for="(item,index) in results.M_SYSTEM_OVERVIEW">
-            <v-list-tile :key="index">
-              <v-list-tile-content>
-                <v-list-tile-title v-html="item.KEY"></v-list-tile-title>
-                <v-list-tile-sub-title v-html="item.VAL"></v-list-tile-sub-title>
-              </v-list-tile-content>
-            </v-list-tile>
-          </template>
-        </v-list>
-      </div>
-    </template>
-    
-    <script>
-    import axios from 'axios';
-    export default {
-      name: 'Overview',
-      data: () => ({
-        results: []
-      }),
-      components: {},
-      methods: {
-        getData(){
-          axios.post(process.env.VUE_APP_HANA_APP_BACKEND + '/api/overview/',{ }).then(res=>{
-            if(res.data){
-              this.results = res.data;
-            }else{
-              this.results = {};
-            }
-          }, err=> {
-            alert(JSON.stringify(err.response.data));
-          }).catch(err=>{
-            alert(`An error occured communicating with the backend.
-            ${err}`);
-          })
-        }
-      },
-      mounted(){
-        this.getData();
-      }
-    }
-    </script>
-    ```
-
-9. The the `Overview.vue` file, we are making use of the `axios` npm module, so we will want to install this.  To do so, open a terminal window in Cloud 9 and cd to your `frontend` folder.  Type `npm i axios` to install it.
-
-# Running our Frontend App in Developer Mode
-
-If you are still running the `vue-cli` UI, you can now terminate it by pressing `Control + C`.  We will now demonstrate how to run the same serve task via command line from the terminal.
-
-1. Make one more trip over to your EC2 Console and expose port `3333`.  This is our backend port that we'll need our browser to hit in order to get back data from our HANA Container running in our Stack while running in Developer mode.  For "production" use cases, we will not need this port.
-
-2. In a terminal window:
-    
-    If your Docker Compose stack is not already running, start it now:
-    ```bash
-    cd /hanadev
-    docker-compose up -d
-    ```
-    
-    Next, let's start up our frontend app in developer mode.
-    
-    ```bash
-    cd /hanadev/hello-world-app/frontend`
-    npm run serve
-    ```
-
-3. After a few moments, you should receive the following feedback in your terminal:
-    
-    ```bash
-     DONE  Compiled successfully in 20991ms                                                                     18:59:50
-    
-     
-      App running at:
-      - Local:   http://localhost:8080/ 
-      - Network: http://172.16.0.99:8080/
-    
-      Note that the development build is not optimized.
-      To create a production build, run npm run build.
-    ```
-
-3. Like earlier, disregard the internal IP, and replace it with your Cloud 9 External IP address and navigate to `http://[your cloud 9 external ip]:80xx` where `80xx` is the port mentioned above.
-
-4. If all has gone well, you should receive a page titled "HANA Sandbox" with your App User shown at the top right, and your HANA Express system information shown below.  If so, congratulations!  You've created a frontend app that is consuming your Docker Compose stack's backend service!
- 
-Running in this manner allows us to make code changes to our frontend application live in Cloud 9 without deploying over and over again, yet at the same time attaching to our Docker Compose stack's backend app and HANA Express DB.  Pretty cool!
-
-After celebrating, terminate the development mode task by pressing `Control + C`.
-
-# Wrapping it up in our Container
-
-For Part 3, we'll consider this a "Milestone" and use this as an opportunity to bundle our frontend application changes into our `docker-compose.yaml` file before we call it a day.  We'll need to update a few files to incorporate the frontend app.
-
-1.  Open your `Dockerfile` located under `/hanadev`  Update it with the following:
-    
-    ```dockerfile
-    # Docker Image containing SAP HANA npm package
-    FROM node:8-slim
-    
-    LABEL Maintainer="Your Name <your.name@example.com>"
-    
-    # Install nginx to handle backend and frontend apps
-    RUN apt-get update && apt-get install -y nginx
-    
-    # Add SAP HANA Client NPM package from SAP's npm repository
-    RUN npm config set @sap:registry https://npm.sap.com && npm i -g @sap/hana-client
-    
-    # Set the global NPM path Environment variable
-    ENV NODE_PATH /usr/local/lib/node_modules
-    
-    # Configure nginx and startup
-    COPY ./hello-world-app/server.conf /etc/nginx/conf.d/default.conf
-    # Copy backend Node JS modu
-    COPY /hello-world-app/backend /app/backend
-    # Copy production build of Vue frontend app
-    COPY /hello-world-app/frontend/dist /app/frontend
-    # Copy startup.sh script
-    COPY ./hello-world-app/startup.sh /app/startup.sh
-    
-    WORKDIR /app
-    CMD ./startup.sh
-    ```
-    
-    We are adding 3 new main items here:
-    
-    1. Our frontend app's production `dist` folder will be copied over to our Docker images's `/app/frontend` folder.  The production `dist` folder is an optimized and minified version of our frontend Vue app.
-    
-    2. Install Nginx and copy some configuration files to do some reverse proxy magic so that we can just have one single port exposed from our container and to abstract the underlying architecture away.
-    
-    3. Copy over a `startup.sh` script since we'll be launching more than one process for the `CMD` line.
-
-2. Create `startup.sh` in `/hanadev/hello-world-app`
-   
-    ```bash
-    #!/bin/sh
-    echo "Starting Servers..."
-    mkdir -p /run/nginx
-    rm /etc/nginx/sites-enabled/default
-    echo "Starting nginx..."
-    nginx
-    cd /app/backend
-    echo "Starting backend..."
-    npm run prod
-    ```
-3. Change permissions to executable for `startup.sh` from a terminal window
-
-   ```bash
-   cd /hanadev/hello-world-app
-   chmod +x startup.sh
-   ```
-
-4. Create `server.conf` in `/hanadev/hello-world-app`
-
-   ```conf
-    server {
-        listen      80 default_server;
-        # document root #
-        root        /app/frontend/;
-        
-        # Route requsts to /backend/ to Backend npm module
-        location /backend/ {
-            proxy_pass http://localhost:9999/;
-        }
-    }
-    ```
-
-5. Build our Vue frontend app to generate the `dist` folder.
-
-    ```bash
-    
-    cd /hanadev/hello-world-app/frontend
-    npm run build
-    ```
-    
-    You should get some feedback similar to this:
-    
-    ```bash
-     > frontend@0.1.0 build /home/ec2-user/environment/hanadev/hello-world-app/frontend
-     > vue-cli-service build
-     
-     
-     ⠏  Building for production...
-     
-      WARNING  Compiled with 2 warnings                                                                               19:16:17
-     
-      warning  
-     
-     entrypoint size limit: The following entrypoint(s) combined asset size exceeds the recommended limit (244      KiB). This can impact web performance.
-     Entrypoints:
-       app (303 KiB)
-           css/chunk-vendors.bc527eeb.css
-           js/chunk-vendors.2793d0c4.js
-           js/app.02b450ce.js
-     
-     
-      warning  
-     
-     webpack performance recommendations: 
-     You can limit the size of your bundles by using import() or require.ensure to lazy load some parts of your      application.
-     For more info visit https://webpack.js.org/guides/code-splitting/
-     
-       File                                   Size              Gzipped
-     
-       dist/js/chunk-vendors.2793d0c4.js      180.43 KiB        60.10 KiB
-       dist/js/app.02b450ce.js                4.87 KiB          2.03 KiB
-       dist/css/chunk-vendors.bc527eeb.css    118.13 KiB        15.45 KiB
-     
-       Images and other types of assets omitted.
-     
-      DONE  Build complete. The dist directory is ready to be deployed.
-      INFO  Check out deployment instructions at https://cli.vuejs.org/guide/deployment.html
-     ```
-6. Update our `docker-compose.yaml` file under `/hanadev`:
-
-    ```yaml
-    version: '2'
-        
-    services:
-        
-      hello-world-app:
-        build: 
-          context: .
-          dockerfile: ./hello-world-app/Dockerfile
-        ports:
-          # - "3333:9999" No longer needed we are using Nginx
-          # Reroute Nginx listening on Port 80 over to 8080 which we've already exposed in EC2
-          - "8080:80"
-        environment:
-          - HANA_UID=${HANA_APP_UID}
-          - HANA_PWD=${HANA_APP_PWD}
-          - HANA_SERVERNODE=${HANA_SERVER}
-    
-      sqlpad:
-        image: sqlpad/sqlpad
-        volumes:
-          - sqlpad:/var/lib/sqlpad
-        ports:
-          - "8899:3000"
-              
-      hxehost:
-        image: store/saplabs/hanaexpress:2.00.036.00.20190223.1
-        hostname: hxe
-        volumes:
-          - hana-express:/hana/mounts
-        command: --agree-to-sap-license --master-password ${HXE_MASTER_PASSWORD}
-        
-    volumes:
-      hana-express:
-      sqlpad:
-    ```
-    
-    - Basically all that we've done is removed the backend port (`3333`) from being accessible, since our Nginx app inside of our Docker container will be reverse-proxying calls to the npm task running there.  For development use cases, you may wish to leave this in place for when developing live and not hosting inside a container, or better yet, simply have a separate docker compose stack for when you are developing, and maybe this one that represents "production".
-    
-    - Secondly, we're exposing Nginx that is listening on Port `80` over to Port `8080` since we've already exposed `8080` in our EC2 Dashboard, and that will save us a trip and another exposed port.
-    
-6. Rebuild our docker-compose stack:
-
-    ```bash
-    cd /hanadev
-    docker-compose build
-    ```
-    
-    **Note** The initial time you run the build it will take longer, as we've added in a few new Docker image layers to account for the new Nginx addition, etc.  After 2 minutes or so, you should get a confirmation that the build has finished successfully:
+    Once you see the following lines indicating that HANA Express has finished starting, proceed to the next step.
     
     ```bash
     
     ...
     
-    Step 7/11 : COPY /hello-world-app/backend /app/backend
-     ---> c5c3508dc2a2
-    Step 8/11 : COPY /hello-world-app/frontend/dist /app/frontend
-     ---> 6ee34d81d8d5
-    Step 9/11 : COPY ./hello-world-app/startup.sh /app/startup.sh
-     ---> 60f38e70da77
-    Step 10/11 : WORKDIR /app
-     ---> Running in e54ee8b3c9c6
-    Removing intermediate container e54ee8b3c9c6
-     ---> df3d269e1dff
-    Step 11/11 : CMD ./startup.sh
-     ---> Running in 594e5016ca51
-    Removing intermediate container 594e5016ca51
-     ---> 4abedcaed348
-    Successfully built 4abedcaed348
-    Successfully tagged hanadev_hello-world-app:latest
+        (Pre start) Hook /hana/hooks/pre_start/330_custom_afls: 0s
+        Pre start: 0s
+        HANA startup: 57s
+        (Post start) Hook /hana/hooks/post_start/201_hxe_optimize: 1s
+        (Post start) Hook /hana/hooks/post_start/203_set_hxe_info: 0s
+        Post start: 1s
+        Overall: 59s
+    Ready at: Wed May 29 20:40:32 UTC 2019
+    Startup finished!
+
     ```
 
-# Moment of Truth
-
-We are now ready to test our new Docker Compose stack.
-
-1. From `/hanadev`, type:
-
+3. In your first Terminal screen, type the following:
+    
     ```bash
-    docker-compose up
+    docker exec -ti hxe /scripts/createContainer.sh HXEHana1 HDI_HELLO_WORLD SYSTEM HXEHana1
     ```
     
-2. After about 60 seconds, open a browser tab and visit `http://[your cloud 9 ide external ip]:8080`  If you see the HANA Sandbox page with your HANA Express system overview, congratulations!  You've successfully containerized your frontend and backend app!
+    You should get a some feedback in your Terminal indicating that the Schema and privileges have been assigned:
+
+    ```
+    | REQUEST_ID           | ROW_ID               | LEVEL       | TYPE    | LIBRARY_ | PLUGIN_I | PATH     | SEVE | MESSAGE_CODE         | MESSAGE                                        | LOC | LOCATION | TIMESTAMP_UTC                 |
+    | -------------------- | -------------------- | ----------- | ------- | -------- | -------- | -------- | ---- | -------------------- | ---------------------------------------------- | --- | -------- | ----------------------------- |
+    |                  249 |                    1 |           0 | HDI     |          |          |          | INFO |              8214127 | Creating the container "HDI_HELLO_WORLD"...    | 0:0 |          | 2019-05-29 20:52:07.772000900 |
+    |                  249 |                    2 |           0 | SUMMARY |          |          |          | INFO |              8214128 | Creating the container "HDI_HELLO_WORLD"... ok | 0:0 |          | 2019-05-29 20:52:08.772000900 |
+    | REQUEST_ID           | ROW_ID               | LEVEL       | TYPE    | LIBRARY_ | PLUGIN_I | PATH     | SEVE | MESSAGE_CODE         | MESSAGE                                                                                                                                                                                                                          | LOC | LOCATION | TIMESTAMP_UTC                 |
+    | -------------------- | -------------------- | ----------- | ------- | -------- | -------- | -------- | ---- | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | -------- | ----------------------------- |
+    |                  250 |                    1 |           0 | HDI     |          |          |          | INFO |              8214207 | Granting API privileges in the container "HDI_HELLO_WORLD" and the parameters "[]"...                                                                                                                                            | 0:0 |          | 2019-05-29 20:52:08.976000900 |
+    |                  250 |                    2 |           1 | HDI     |          |          |          | INFO |              8214225 | Granting the API privilege "EXECUTE" on the object "CANCEL" in the schema "HDI_HELLO_WORLD#DI" to the principal "HDI_HELLO_WORLD_USER_DT" in the schema "" with grant option = "false"                                           | 0:0 |          | 2019-05-29 20:52:08.976000900 |
+    |                  250 |                    3 |           1 | HDI     |          |          |          | INFO |              8214225 | Granting the API privilege "EXECUTE" on the object "CONFIGURE_CONTAINER" in the schema "HDI_HELLO_WORLD#DI" to the principal "HDI_HELLO_WORLD_USER_DT" in the schema "" with grant option = "false"                              | 0:0 |          | 2019-05-29 20:52:08.989000900 |
+    |                  250 |                    4 |           1 | HDI     |          |          |          | INFO |              8214225 | Granting the API privilege "EXECUTE" on the object "CONFIGURE_CONTAINER_PARAMETERS" in the schema "HDI_HELLO_WORLD#DI" to the principal "HDI_HELLO_WORLD_USER_DT" in the schema "" with grant option = "false"                   | 0:0 |          | 2019-05-29 20:52:08.994000900 |
+    |                  250 |                    5 |           1 | HDI     |          |          |          | INFO |              8214225 | Granting the API privilege "EXECUTE" on the object "CONFIGURE_LIBRARIES" in the schema "HDI_HELLO_WORLD#DI" to the principal "HDI_HELLO_WORLD_USER_DT" in the schema "" with grant option = "false"                              | 0:0 |          | 2019-05-29 20:52:09.600090000 |
+    |                  250 |                    6 |           1 | HDI     |          |          |          | INFO |              8214225 | Granting the API privilege "EXECUTE" on the object "DELETE" in the schema "HDI_HELLO_WORLD#DI" to the principal "HDI_HELLO_WORLD_USER_DT" in the schema "" with grant option = "false"                                           | 0:0 |          | 2019-05-29 20:52:09.280009000 |
+    |                  250 |                    7 |           1 | HDI     |          |          |          | INFO |              8214225 | Granting the API privilege "EXECUTE" on the object "GET_DEPENDENCIES" in the schema "HDI_HELLO_WORLD#DI" to the principal "HDI_HELLO_WORLD_USER_DT" in the schema "" with grant option = "false"                                 | 0:0 |          | 2019-05-29 20:52:09.340009000 |
+    |                  250 |                    8 |           1 | HDI     |          |          |          | INFO |              8214225 | Granting the API privilege "EXECUTE" on the object "GET_MAKE_GROUPS" in the schema "HDI_HELLO_WORLD#DI" to the principal "HDI_HELLO_WORLD_USER_DT" in the schema "" with grant option = "false"                                  | 0:0 |          | 2019-05-29 20:52:09.410009000 |
+    |                  250 |                    9 |           1 | HDI     |          |          |          | INFO |              8214225 | Granting the API privilege "EXECUTE" on the object "GRANT_CONTAINER_API_PRIVILEGES" in the schema "HDI_HELLO_WORLD#DI" to the principal "HDI_HELLO_WORLD_USER_DT" in the schema "" with grant option = "false"                   | 0:0 |          | 2019-05-29 20:52:09.530009000 |
+    |                  250 |                   10 |           1 | HDI     |          |          |          | INFO |              8214225 | Granting the API privilege "EXECUTE" on the object "GRANT_CONTAINER_API_PRIVILEGES_WITH_GRANT_OPTION" in the schema "HDI_HELLO_WORLD#DI" to the principal "HDI_HELLO_WORLD_USER_DT" in the schema "" with grant option = "false" | 0:0 |          | 2019-05-29 20:52:09.600009000 |
+    |                  250 |                   11 |           1 | HDI     |          |          |          | INFO |              8214225 | Granting the API privilege "EXECUTE" on the object "GRANT_CONTAINER_SCHEMA_PRIVILEGES" in the schema "HDI_HELLO_WORLD#DI" to the principal "HDI_HELLO_WORLD_USER_DT" in the schema "" with grant option = "false"                | 0:0 |          | 2019-05-29 20:52:09.700009000 |
+    |                  250 |                   12 |           1 | HDI     |          |          |          | INFO |              8214225 | Granting the API privilege "EXECUTE" on the object "GRANT_CONTAINER_SCHEMA_ROLES" in the schema "HDI_HELLO_WORLD#DI" to the principal "HDI_HELLO_WORLD_USER_DT" in the schema "" with grant option = "false"                     | 0:0 |          | 2019-05-29 20:52:09.770009000 |
+    |                  250 |                   13 |           1 | HDI     |          |          |          | INFO |              8214225 | Granting the API privilege "EXECUTE" on the object "LIST" in the schema "HDI_HELLO_WORLD#DI" to the principal "HDI_HELLO_WORLD_USER_DT" in the schema "" with grant option = "false"                                             | 0:0 |          | 2019-05-29 20:52:09.830009000 |
+    |                  250 |                   14 |           1 | HDI     |          |          |          | INFO |              8214225 | Granting the API privilege "EXECUTE" on the object "LIST_CONFIGURED_LIBRARIES" in the schema "HDI_HELLO_WORLD#DI" to the principal "HDI_HELLO_WORLD_USER_DT" in the schema "" with grant option = "false"                        | 0:0 |          | 2019-05-29 20:52:09.900009000 |
+    |                  250 |                   15 |           1 | HDI     |          |          |          | INFO |              8214225 | Granting the API privilege "EXECUTE" on the object "LIST_DEPLOYED" in the schema "HDI_HELLO_WORLD#DI" to the principal "HDI_HELLO_WORLD_USER_DT" in the schema "" with grant option = "false"                                    | 0:0 |          | 2019-05-29 20:52:09.970009000 |
+    |                  250 |                   16 |           1 | HDI     |          |          |          | INFO |              8214225 | Granting the API privilege "EXECUTE" on the object "LOCK" in the schema "HDI_HELLO_WORLD#DI" to the principal "HDI_HELLO_WORLD_USER_DT" in the schema "" with grant option = "false"                                             | 0:0 |          | 2019-05-29 20:52:09.104000900 |
+    |                  250 |                   17 |           1 | HDI     |          |          |          | INFO |              8214225 | Granting the API privilege "EXECUTE" on the object "MAKE" in the schema "HDI_HELLO_WORLD#DI" to the principal "HDI_HELLO_WORLD_USER_DT" in the schema "" with grant option = "false"                                             | 0:0 |          | 2019-05-29 20:52:09.111000900 |
+    |                  250 |                   18 |           1 | HDI     |          |          |          | INFO |              8214225 | Granting the API privilege "EXECUTE" on the object "MAKE_ASYNC" in the schema "HDI_HELLO_WORLD#DI" to the principal "HDI_HELLO_WORLD_USER_DT" in the schema "" with grant option = "false"                                       | 0:0 |          | 2019-05-29 20:52:09.116000900 |
+    |                  250 |                   19 |           1 | HDI     |          |          |          | INFO |              8214225 | Granting the API privilege "EXECUTE" on the object "READ" in the schema "HDI_HELLO_WORLD#DI" to the principal "HDI_HELLO_WORLD_USER_DT" in the schema "" with grant option = "false"                                             | 0:0 |          | 2019-05-29 20:52:09.122000900 |
+    |                  250 |                   20 |           1 | HDI     |          |          |          | INFO |              8214225 | Granting the API privilege "EXECUTE" on the object "READ_DEPLOYED" in the schema "HDI_HELLO_WORLD#DI" to the principal "HDI_HELLO_WORLD_USER_DT" in the schema "" with grant option = "false"                                    | 0:0 |          | 2019-05-29 20:52:09.129000900 |
+    |                  250 |                   21 |           1 | HDI     |          |          |          | INFO |              8214225 | Granting the API privilege "EXECUTE" on the object "REVOKE_CONTAINER_API_PRIVILEGES" in the schema "HDI_HELLO_WORLD#DI" to the principal "HDI_HELLO_WORLD_USER_DT" in the schema "" with grant option = "false"                  | 0:0 |          | 2019-05-29 20:52:09.135000900 |
+    |                  250 |                   22 |           1 | HDI     |          |          |          | INFO |              8214225 | Granting the API privilege "EXECUTE" on the object "REVOKE_CONTAINER_SCHEMA_PRIVILEGES" in the schema "HDI_HELLO_WORLD#DI" to the principal "HDI_HELLO_WORLD_USER_DT" in the schema "" with grant option = "false"               | 0:0 |          | 2019-05-29 20:52:09.142000900 |
+    |                  250 |                   23 |           1 | HDI     |          |          |          | INFO |              8214225 | Granting the API privilege "EXECUTE" on the object "REVOKE_CONTAINER_SCHEMA_ROLES" in the schema "HDI_HELLO_WORLD#DI" to the principal "HDI_HELLO_WORLD_USER_DT" in the schema "" with grant option = "false"                    | 0:0 |          | 2019-05-29 20:52:09.147000900 |
+    |                  250 |                   24 |           1 | HDI     |          |          |          | INFO |              8214225 | Granting the API privilege "EXECUTE" on the object "STATUS" in the schema "HDI_HELLO_WORLD#DI" to the principal "HDI_HELLO_WORLD_USER_DT" in the schema "" with grant option = "false"                                           | 0:0 |          | 2019-05-29 20:52:09.151000900 |
+    |                  250 |                   25 |           1 | HDI     |          |          |          | INFO |              8214225 | Granting the API privilege "EXECUTE" on the object "WRITE" in the schema "HDI_HELLO_WORLD#DI" to the principal "HDI_HELLO_WORLD_USER_DT" in the schema "" with grant option = "false"                                            | 0:0 |          | 2019-05-29 20:52:09.156000900 |
+    |                  250 |                   26 |           1 | HDI     |          |          |          | INFO |              8214225 | Granting the API privilege "SELECT" on the object "TT_FILESFOLDERS_METADATA_CONTENT" in the schema "_SYS_DI" to the principal "HDI_HELLO_WORLD_USER_DT" in the schema "" with grant option = "false"                             | 0:0 |          | 2019-05-29 20:52:09.161000900 |
+    |                  250 |                   27 |           1 | HDI     |          |          |          | INFO |              8214225 | Granting the API privilege "SELECT" on the object "T_NO_FILESFOLDERS_METADATA_CONTENT" in the schema "_SYS_DI" to the principal "HDI_HELLO_WORLD_USER_DT" in the schema "" with grant option = "false"                           | 0:0 |          | 2019-05-29 20:52:09.164000900 |
+    |                  250 |                   28 |           1 | HDI     |          |          |          | INFO |              8214225 | Granting the API privilege "SELECT" on the object "TT_MESSAGES" in the schema "_SYS_DI" to the principal "HDI_HELLO_WORLD_USER_DT" in the schema "" with grant option = "false"                                                  | 0:0 |          | 2019-05-29 20:52:09.168000900 |
+    |                  250 |                   29 |           1 | HDI     |          |          |          | INFO |              8214225 | Granting the API privilege "SELECT" on the object "T_NO_MESSAGES" in the schema "_SYS_DI" to the principal "HDI_HELLO_WORLD_USER_DT" in the schema "" with grant option = "false"                                                | 0:0 |          | 2019-05-29 20:52:09.171000900 |
+    |                  250 |                   30 |           1 | HDI     |          |          |          | INFO |              8214225 | Granting the API privilege "SELECT" on the object "TT_CONTAINER_EXPORT" in the schema "_SYS_DI" to the principal "HDI_HELLO_WORLD_USER_DT" in the schema "" with grant option = "false"                                          | 0:0 |          | 2019-05-29 20:52:09.175000900 |
+    |                  250 |                   31 |           1 | HDI     |          |          |          | INFO |              8214225 | Granting the API privilege "SELECT" on the object "T_NO_CONTAINER_EXPORT" in the schema "_SYS_DI" to the principal "HDI_HELLO_WORLD_USER_DT" in the schema "" with grant option = "false"                                        | 0:0 |          | 2019-05-29 20:52:09.178000900 |
+    |                  250 |                   32 |           1 | HDI     |          |          |          | INFO |              8214225 | Granting the API privilege "SELECT" on the object "TT_PARAMETERS" in the schema "_SYS_DI" to the principal "HDI_HELLO_WORLD_USER_DT" in the schema "" with grant option = "false"                                                | 0:0 |          | 2019-05-29 20:52:09.181000900 |
+    |                  250 |                   33 |           1 | HDI     |          |          |          | INFO |              8214225 | Granting the API privilege "SELECT" on the object "T_NO_PARAMETERS" in the schema "_SYS_DI" to the principal "HDI_HELLO_WORLD_USER_DT" in the schema "" with grant option = "false"                                              | 0:0 |          | 2019-05-29 20:52:09.185000900 |
+    |                  250 |                   34 |           1 | HDI     |          |          |          | INFO |              8214225 | Granting the API privilege "SELECT" on the object "TT_SCHEMA_PRIVILEGES" in the schema "_SYS_DI" to the principal "HDI_HELLO_WORLD_USER_DT" in the schema "" with grant option = "false"                                         | 0:0 |          | 2019-05-29 20:52:09.188000900 |
+    |                  250 |                   35 |           1 | HDI     |          |          |          | INFO |              8214225 | Granting the API privilege "SELECT" on the object "T_NO_SCHEMA_PRIVILEGES" in the schema "_SYS_DI" to the principal "HDI_HELLO_WORLD_USER_DT" in the schema "" with grant option = "false"                                       | 0:0 |          | 2019-05-29 20:52:09.192000900 |
+    |                  250 |                   36 |           1 | HDI     |          |          |          | INFO |              8214225 | Granting the API privilege "SELECT" on the object "TT_SCHEMA_ROLES" in the schema "_SYS_DI" to the principal "HDI_HELLO_WORLD_USER_DT" in the schema "" with grant option = "false"                                              | 0:0 |          | 2019-05-29 20:52:09.196000900 |
+    |                  250 |                   37 |           1 | HDI     |          |          |          | INFO |              8214225 | Granting the API privilege "SELECT" on the object "T_NO_SCHEMA_ROLES" in the schema "_SYS_DI" to the principal "HDI_HELLO_WORLD_USER_DT" in the schema "" with grant option = "false"                                            | 0:0 |          | 2019-05-29 20:52:09.199000900 |
+    |                  250 |                   38 |           1 | HDI     |          |          |          | INFO |              8214225 | Granting the API privilege "SELECT" on the object "TT_API_PRIVILEGES" in the schema "_SYS_DI" to the principal "HDI_HELLO_WORLD_USER_DT" in the schema "" with grant option = "false"                                            | 0:0 |          | 2019-05-29 20:52:09.202000900 |
+    |                  250 |                   39 |           1 | HDI     |          |          |          | INFO |              8214225 | Granting the API privilege "SELECT" on the object "T_NO_API_PRIVILEGES" in the schema "_SYS_DI" to the principal "HDI_HELLO_WORLD_USER_DT" in the schema "" with grant option = "false"                                          | 0:0 |          | 2019-05-29 20:52:09.205000900 |
+    |                  250 |                   40 |           1 | HDI     |          |          |          | INFO |              8214225 | Granting the API privilege "SELECT" on the object "TT_FILESFOLDERS" in the schema "_SYS_DI" to the principal "HDI_HELLO_WORLD_USER_DT" in the schema "" with grant option = "false"                                              | 0:0 |          | 2019-05-29 20:52:09.209000900 |
+    |                  250 |                   41 |           1 | HDI     |          |          |          | INFO |              8214225 | Granting the API privilege "SELECT" on the object "T_NO_FILESFOLDERS" in the schema "_SYS_DI" to the principal "HDI_HELLO_WORLD_USER_DT" in the schema "" with grant option = "false"                                            | 0:0 |          | 2019-05-29 20:52:09.212000900 |
+    |                  250 |                   42 |           1 | HDI     |          |          |          | INFO |              8214225 | Granting the API privilege "SELECT" on the object "TT_FILESFOLDERS_CONTENT" in the schema "_SYS_DI" to the principal "HDI_HELLO_WORLD_USER_DT" in the schema "" with grant option = "false"                                      | 0:0 |          | 2019-05-29 20:52:09.215000900 |
+    |                  250 |                   43 |           1 | HDI     |          |          |          | INFO |              8214225 | Granting the API privilege "SELECT" on the object "T_NO_FILESFOLDERS_CONTENT" in the schema "_SYS_DI" to the principal "HDI_HELLO_WORLD_USER_DT" in the schema "" with grant option = "false"                                    | 0:0 |          | 2019-05-29 20:52:09.219000900 |
+    |                  250 |                   44 |           1 | HDI     |          |          |          | INFO |              8214225 | Granting the API privilege "SELECT" on the object "TT_FILESFOLDERS_METADATA" in the schema "_SYS_DI" to the principal "HDI_HELLO_WORLD_USER_DT" in the schema "" with grant option = "false"                                     | 0:0 |          | 2019-05-29 20:52:09.222000900 |
+    |                  250 |                   45 |           1 | HDI     |          |          |          | INFO |              8214225 | Granting the API privilege "SELECT" on the object "T_NO_FILESFOLDERS_METADATA" in the schema "_SYS_DI" to the principal "HDI_HELLO_WORLD_USER_DT" in the schema "" with grant option = "false"                                   | 0:0 |          | 2019-05-29 20:52:09.225000900 |
+    |                  250 |                   46 |           1 | HDI     |          |          |          | INFO |              8214225 | Granting the API privilege "SELECT" on the object "TT_FILESFOLDERS_STATUS" in the schema "_SYS_DI" to the principal "HDI_HELLO_WORLD_USER_DT" in the schema "" with grant option = "false"                                       | 0:0 |          | 2019-05-29 20:52:09.229000900 |
+    |                  250 |                   47 |           1 | HDI     |          |          |          | INFO |              8214225 | Granting the API privilege "SELECT" on the object "T_NO_FILESFOLDERS_STATUS" in the schema "_SYS_DI" to the principal "HDI_HELLO_WORLD_USER_DT" in the schema "" with grant option = "false"                                     | 0:0 |          | 2019-05-29 20:52:09.232000900 |
+    |                  250 |                   48 |           1 | HDI     |          |          |          | INFO |              8214225 | Granting the API privilege "SELECT" on the object "TT_FILESFOLDERS_PARAMETERS" in the schema "_SYS_DI" to the principal "HDI_HELLO_WORLD_USER_DT" in the schema "" with grant option = "false"                                   | 0:0 |          | 2019-05-29 20:52:09.236000900 |
+    |                  250 |                   49 |           1 | HDI     |          |          |          | INFO |              8214225 | Granting the API privilege "SELECT" on the object "T_NO_FILESFOLDERS_PARAMETERS" in the schema "_SYS_DI" to the principal "HDI_HELLO_WORLD_USER_DT" in the schema "" with grant option = "false"                                 | 0:0 |          | 2019-05-29 20:52:09.239000900 |
+    |                  250 |                   50 |           1 | HDI     |          |          |          | INFO |              8214225 | Granting the API privilege "SELECT" on the object "TT_LIBRARY_CONFIGURATION" in the schema "_SYS_DI" to the principal "HDI_HELLO_WORLD_USER_DT" in the schema "" with grant option = "false"                                     | 0:0 |          | 2019-05-29 20:52:09.242000900 |
+    |                  250 |                   51 |           1 | HDI     |          |          |          | INFO |              8214225 | Granting the API privilege "SELECT" on the object "T_NO_LIBRARY_CONFIGURATION" in the schema "_SYS_DI" to the principal "HDI_HELLO_WORLD_USER_DT" in the schema "" with grant option = "false"                                   | 0:0 |          | 2019-05-29 20:52:09.245000900 |
+    |                  250 |                   52 |           1 | HDI     |          |          |          | INFO |              8214225 | Granting the API privilege "SELECT" on the object "TT_LIBRARY_INFORMATION" in the schema "_SYS_DI" to the principal "HDI_HELLO_WORLD_USER_DT" in the schema "" with grant option = "false"                                       | 0:0 |          | 2019-05-29 20:52:09.249000900 |
+    |                  250 |                   53 |           1 | HDI     |          |          |          | INFO |              8214225 | Granting the API privilege "SELECT" on the object "T_NO_LIBRARY_INFORMATION" in the schema "_SYS_DI" to the principal "HDI_HELLO_WORLD_USER_DT" in the schema "" with grant option = "false"                                     | 0:0 |          | 2019-05-29 20:52:09.252000900 |
+    |                  250 |                   54 |           1 | HDI     |          |          |          | INFO |              8214225 | Granting the API privilege "SELECT" on the object "TT_OBJECTS" in the schema "_SYS_DI" to the principal "HDI_HELLO_WORLD_USER_DT" in the schema "" with grant option = "false"                                                   | 0:0 |          | 2019-05-29 20:52:09.255000900 |
+    |                  250 |                   55 |           1 | HDI     |          |          |          | INFO |              8214225 | Granting the API privilege "SELECT" on the object "T_NO_OBJECTS" in the schema "_SYS_DI" to the principal "HDI_HELLO_WORLD_USER_DT" in the schema "" with grant option = "false"                                                 | 0:0 |          | 2019-05-29 20:52:09.259000900 |
+    |                  250 |                   56 |           1 | HDI     |          |          |          | INFO |              8214225 | Granting the API privilege "SELECT" on the object "TT_DEPENDENCIES" in the schema "_SYS_DI" to the principal "HDI_HELLO_WORLD_USER_DT" in the schema "" with grant option = "false"                                              | 0:0 |          | 2019-05-29 20:52:09.262000900 |
+    |                  250 |                   57 |           1 | HDI     |          |          |          | INFO |              8214225 | Granting the API privilege "SELECT" on the object "T_NO_DEPENDENCIES" in the schema "_SYS_DI" to the principal "HDI_HELLO_WORLD_USER_DT" in the schema "" with grant option = "false"                                            | 0:0 |          | 2019-05-29 20:52:09.266000900 |
+    |                  250 |                   58 |           1 | HDI     |          |          |          | INFO |              8214225 | Granting the API privilege "SELECT" on the object "TT_MAKE_GROUPS" in the schema "_SYS_DI" to the principal "HDI_HELLO_WORLD_USER_DT" in the schema "" with grant option = "false"                                               | 0:0 |          | 2019-05-29 20:52:09.269000900 |
+    |                  250 |                   59 |           1 | HDI     |          |          |          | INFO |              8214225 | Granting the API privilege "SELECT" on the object "T_NO_MAKE_GROUPS" in the schema "_SYS_DI" to the principal "HDI_HELLO_WORLD_USER_DT" in the schema "" with grant option = "false"                                             | 0:0 |          | 2019-05-29 20:52:09.272000900 |
+    |                  250 |                   60 |           1 | HDI     |          |          |          | INFO |              8214225 | Granting the API privilege "SELECT" on the object "T_DEFAULT_LIBRARIES" in the schema "_SYS_DI" to the principal "HDI_HELLO_WORLD_USER_DT" in the schema "" with grant option = "false"                                          | 0:0 |          | 2019-05-29 20:52:09.276000900 |
+    |                  250 |                   61 |           1 | HDI     |          |          |          | INFO |              8214225 | Granting the API privilege "SELECT" on the object "T_DEFAULT_COMMON_PRIVILEGES" in the schema "_SYS_DI" to the principal "HDI_HELLO_WORLD_USER_DT" in the schema "" with grant option = "false"                                  | 0:0 |          | 2019-05-29 20:52:09.279000900 |
+    |                  250 |                   62 |           1 | HDI     |          |          |          | INFO |              8214225 | Granting the API privilege "SELECT" on the object "T_DEFAULT_CONTAINER_USER_PRIVILEGES" in the schema "_SYS_DI" to the principal "HDI_HELLO_WORLD_USER_DT" in the schema "" with grant option = "false"                          | 0:0 |          | 2019-05-29 20:52:09.282000900 |
+    |                  250 |                   63 |           1 | HDI     |          |          |          | INFO |              8214225 | Granting the API privilege "CREATE TEMPORARY TABLE" on the object "<schema>" in the schema "HDI_HELLO_WORLD#DI" to the principal "HDI_HELLO_WORLD_USER_DT" in the schema "" with grant option = "false"                          | 0:0 |          | 2019-05-29 20:52:09.285000900 |
+    |                  250 |                   64 |           1 | HDI     |          |          |          | INFO |              8214225 | Granting the API privilege "SELECT" on the object "M_JOBS" in the schema "HDI_HELLO_WORLD#DI" to the principal "HDI_HELLO_WORLD_USER_DT" in the schema "" with grant option = "false"                                            | 0:0 |          | 2019-05-29 20:52:09.299000900 |
+    |                  250 |                   65 |           1 | HDI     |          |          |          | INFO |              8214225 | Granting the API privilege "SELECT" on the object "M_MESSAGES" in the schema "HDI_HELLO_WORLD#DI" to the principal "HDI_HELLO_WORLD_USER_DT" in the schema "" with grant option = "false"                                        | 0:0 |          | 2019-05-29 20:52:09.302000900 |
+    |                  250 |                   66 |           1 | HDI     |          |          |          | INFO |              8214225 | Granting the API privilege "SELECT" on the object "M_ROLES" in the schema "HDI_HELLO_WORLD#DI" to the principal "HDI_HELLO_WORLD_USER_DT" in the schema "" with grant option = "false"                                           | 0:0 |          | 2019-05-29 20:52:09.306000900 |
+    |                  250 |                   67 |           1 | HDI     |          |          |          | INFO |              8214225 | Granting the API privilege "SELECT" on the object "T_DEFAULT_CONTAINER_ADMIN_PRIVILEGES" in the schema "_SYS_DI" to the principal "HDI_HELLO_WORLD_USER_DT" in the schema "" with grant option = "false"                         | 0:0 |          | 2019-05-29 20:52:09.309000900 |
+    |                  250 |                   68 |           0 | SUMMARY |          |          |          | INFO |              8214208 | Granting API privileges in the container "HDI_HELLO_WORLD" and the parameters "[]"... ok                                                                                                                                         | 0:0 |          | 2019-05-29 20:52:09.313000900 |
+    | REQUEST_ID           | ROW_ID               | LEVEL       | TYPE    | LIBRARY_ | PLUGIN_I | PATH     | SEVE | MESSAGE_CODE         | MESSAGE                                                                                                                        | LOC | LOCATION | TIMESTAMP_UTC                 |
+    | -------------------- | -------------------- | ----------- | ------- | -------- | -------- | -------- | ---- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------ | --- | -------- | ----------------------------- |
+    |                  251 |                    1 |           0 | HDI     |          |          |          | INFO |              8214213 | Granting schema privileges in the container "HDI_HELLO_WORLD" and the parameters "[]"...                                       | 0:0 |          | 2019-05-29 20:52:09.386000900 |
+    |                  251 |                    2 |           1 | HDI     |          |          |          | INFO |              8214227 | Granting the schema privilege "SELECT" to the principal "HDI_HELLO_WORLD_USER_RT" in the schema "" with grant option = "false" | 0:0 |          | 2019-05-29 20:52:09.391000900 |
+    |                  251 |                    3 |           0 | SUMMARY |          |          |          | INFO |              8214214 | Granting schema privileges in the container "HDI_HELLO_WORLD" and the parameters "[]"... ok                                    | 0:0 |          | 2019-05-29 20:52:09.423000900 |
+    | Object Owner            | Application User        |
+    | ----------------------- | ----------------------- |
+    | HDI_HELLO_WORLD_USER_DT | HDI_HELLO_WORLD_USER_RT |
+    ```
+
+    Congrats, you've created an HDI Container!  Let's put a quick table with some data out there next.
+
+## Creating HDI Database Artifacts 
+
+Next, we will create a super-simple Node module that will be responsible solely for telling the `diserver` in HANA Express to create some Database objects in our HDI Container.
+
+1. In your `hanadev/hello-world-app` folder, create a new folder called `hdi-todo-list-db`.
+2. Inside the `hdi-todo-list-db`, create a `package.json` file and paste in the following contents:
+    
+    ```json
+    {
+        "name": "deploy",
+        "dependencies": {
+            "@sap/hdi-deploy": "3.10.0"
+        },
+        "scripts": {
+            "start": "node node_modules/@sap/hdi-deploy/deploy.js --auto-undeploy --exit"
+        }
+    }
+    ```
+
+    **Note:** This is a typical `package.json` file you might have seen SAP Web IDE create, with 2 additions:
+
+   - `--auto-undeploy` that way if you remove/rename objects in the `src` folder, the container will clean up after itself.
+   - `--exit` this lets the npm script end when done building instead of having to press `Control + C` at the end.
+
+3. Next, in the `hdi-hello-world-db` folder, create a `default-env.json` file:
+    
+    ```json
+    {
+        "TARGET_CONTAINER": "hdi_hello_world_db",		
+        "VCAP_SERVICES": {
+		    "hana": [
+			    {
+				    "name": "hdi_hello_world_db",
+				    "label": "hana",
+				    "tags": [
+					    "hana",
+					    "database",
+					    "relational"
+				    ],
+				    "plan": "hdi-shared",
+				    "credentials": {
+					    "schema": "HDI_HELLO_WORLD",
+					    "hdi_password": "HXEHana1",
+					    "tenant_name": "HXE",
+					    "password": "HXEHana1",
+					    "driver": "com.sap.db.jdbc.Driver",
+					    "port": "39017",
+					    "encrypt": false,
+					    "db_hosts": [
+						    {
+							    "port": 39017,
+							    "host": "localhost"
+						    }
+					    ],
+					    "host": "localhost",
+					    "hdi_user": "HDI_HELLO_WORLD_USER_DT",
+					    "user": "HDI_HELLO_WORLD_USER_RT",
+					    "url": "jdbc:sap://localhost:39017/?currentschema=HDI_HELLO_WORLD"
+				    }
+			    }
+		    ]
+	    }
+    }
+    ```
+
+4. Inside the `hdi-hello-world-db`, create a `src` folder.
+5. Inside the `src` folder, create a `.hdiconfig` folder and paste in the following:
+    
+    ```json
+    {
+        "plugin_version" : "2.0.36.0",
+        "file_suffixes" : {
+            "hdbcollection" : {
+                "plugin_name" : "com.sap.hana.di.collection"
+            },
+            "hdbsystemversioning" : {
+                "plugin_name" : "com.sap.hana.di.systemversioning"
+            },
+            "hdbsynonym" : {
+                "plugin_name" : "com.sap.hana.di.synonym"
+            },
+            "hdbsynonymconfig" : {
+                "plugin_name" : "com.sap.hana.di.synonym.config"
+            },
+            "hdbtable" : {
+                "plugin_name" : "com.sap.hana.di.table"
+            },
+            "hdbdropcreatetable" : {
+                "plugin_name" : "com.sap.hana.di.dropcreatetable"
+            },
+            "hdbvirtualtable" : {
+                "plugin_name" : "com.sap.hana.di.virtualtable"
+            },
+            "hdbvirtualtableconfig" : {
+                "plugin_name" : "com.sap.hana.di.virtualtable.config"
+            },
+            "hdbindex" : {
+                "plugin_name" : "com.sap.hana.di.index"
+            },
+            "hdbfulltextindex" : {
+                "plugin_name" : "com.sap.hana.di.fulltextindex"
+            },
+            "hdbconstraint" : {
+                "plugin_name" : "com.sap.hana.di.constraint"
+            },
+            "hdbtrigger" : {
+                "plugin_name" : "com.sap.hana.di.trigger"
+            },
+            "hdbstatistics" : {
+                "plugin_name" : "com.sap.hana.di.statistics"
+            },
+            "hdbview" : {
+                "plugin_name" : "com.sap.hana.di.view"
+            },
+            "hdbcalculationview" : {
+                "plugin_name" : "com.sap.hana.di.calculationview"
+            },
+            "hdbprojectionview" : {
+                "plugin_name" : "com.sap.hana.di.projectionview"
+            },
+            "hdbprojectionviewconfig" : {
+                "plugin_name" : "com.sap.hana.di.projectionview.config"
+            },
+            "hdbresultcache" : {
+                "plugin_name" : "com.sap.hana.di.resultcache"
+            },
+            "hdbcds" : {
+                "plugin_name" : "com.sap.hana.di.cds"
+            },
+            "hdbfunction" : {
+                "plugin_name" : "com.sap.hana.di.function"
+            },
+            "hdbvirtualfunction" : {
+                "plugin_name" : "com.sap.hana.di.virtualfunction"
+            },
+            "hdbvirtualfunctionconfig" : {
+                "plugin_name" : "com.sap.hana.di.virtualfunction.config"
+            },
+            "hdbhadoopmrjob" : {
+                "plugin_name" : "com.sap.hana.di.virtualfunctionpackage.hadoop"
+            },
+            "jar" : {
+                "plugin_name" : "com.sap.hana.di.virtualfunctionpackage.hadoop"
+            },
+            "hdbtabletype" : {
+                "plugin_name" : "com.sap.hana.di.tabletype"
+            },
+            "hdbprocedure" : {
+                "plugin_name" : "com.sap.hana.di.procedure"
+            },
+            "hdbvirtualprocedure" : {
+                "plugin_name" : "com.sap.hana.di.virtualprocedure"
+            },
+            "hdbvirtualprocedureconfig" : {
+                "plugin_name" : "com.sap.hana.di.virtualprocedure.config"
+            },
+            "hdbafllangprocedure" : {
+                "plugin_name" : "com.sap.hana.di.afllangprocedure"
+            },
+            "hdblibrary" : {
+                "plugin_name" : "com.sap.hana.di.library"
+            },
+            "hdbsequence" : {
+                "plugin_name" : "com.sap.hana.di.sequence"
+            },
+            "hdbrole" : {
+                "plugin_name" : "com.sap.hana.di.role"
+            },
+            "hdbroleconfig" : {
+                "plugin_name" : "com.sap.hana.di.role.config"
+            },
+            "hdbstructuredprivilege" : {
+                "plugin_name" : "com.sap.hana.di.structuredprivilege"
+            },
+            "hdbanalyticprivilege" : {
+                "plugin_name" : "com.sap.hana.di.analyticprivilege"
+            },
+            "hdbtabledata" : {
+                "plugin_name" : "com.sap.hana.di.tabledata"
+            },
+            "csv" : {
+                "plugin_name" : "com.sap.hana.di.tabledata.source"
+            },
+            "properties" : {
+                "plugin_name" : "com.sap.hana.di.tabledata.properties"
+            },
+            "tags" : {
+                "plugin_name" : "com.sap.hana.di.tabledata.properties"
+            },
+            "hdbgraphworkspace" : {
+                "plugin_name" : "com.sap.hana.di.graphworkspace"
+            },
+            "hdbflowgraph" : {
+                "plugin_name" : "com.sap.hana.di.flowgraph"
+            },
+            "hdbreptask" : {
+                "plugin_name" : "com.sap.hana.di.reptask"
+            },
+            "hdbsearchruleset" : {
+                "plugin_name" : "com.sap.hana.di.searchruleset"
+            },
+            "hdbtextconfig" : {
+                "plugin_name" : "com.sap.hana.di.textconfig"
+            },
+            "hdbtextdict" : {
+                "plugin_name" : "com.sap.hana.di.textdictionary"
+            },
+            "hdbtextrule" : {
+                "plugin_name" : "com.sap.hana.di.textrule"
+            },
+            "hdbtextinclude" : {
+                "plugin_name" : "com.sap.hana.di.textrule.include"
+            },
+            "hdbtextlexicon" : {
+                "plugin_name" : "com.sap.hana.di.textrule.lexicon"
+            },
+            "hdbtextminingconfig" : {
+                "plugin_name" : "com.sap.hana.di.textminingconfig"
+            },
+            "txt" : {
+                "plugin_name" : "com.sap.hana.di.copyonly"
+            }
+        }
+    }
+    ```
+6. Inside the `src` folder, create a `TodoList.hdbtable` file:
+    
+    ```sql
+    COLUMN TABLE "TodoList" (
+      "TASKID" INTEGER CS_INT GENERATED BY DEFAULT AS IDENTITY (NO CYCLE NO CACHE NO MINVALUE START WITH 200000000 INCREMENT BY 1 MAXVALUE 2999999999) NOT NULL COMMENT 'To Do List ID',
+      "CREATEDBY" NVARCHAR(10) COMMENT 'Created By',
+      "CREATEDON" DATE CS_DAYDATE COMMENT 'Created Date',
+      "TASK" TEXT COMMENT 'Task Description',
+      "COMPLETE" VARCHAR(1) COMMENT 'Task Completed',
+    PRIMARY KEY ("TASKID"))  COMMENT 'To-Do List'
+    ```
+
+7. Now, we are ready to build this TodoList table in our HDI container.  In a Terminal Window, type:
+
+    ```bash
+    cd ~/environment/hanadev/hello-world-app/hdi-hello-world-db
+    npm i
+    npm run start
+    ```
+    
+    After a few seconds, you should have the following console output:
+
+    ```bash
+    > deploy@ start /home/ec2-user/environment/hanadev/hello-world-app/hdi-hello-world-db
+    > node node_modules/@sap/hdi-deploy/deploy.js --auto-undeploy --exit
+    
+    @sap/hdi-deploy, version 3.10.0 (mode default), server version 2.00.036.00.1547699771 (2.0.36.0), node version 8.16.0, HDI version -1, container API version -1
+    Detection of container API version failed; root cause: The server does not support container API version detection.
+    Detection of HDI version failed; root cause: The server does not support HDI version detection.
+    Using default environment variables from file "default-env.json"
+    No ignore file at /home/ec2-user/environment/hanadev/hello-world-app/hdi-hello-world-db/.hdiignore.
+    Collecting files...
+    Collecting files... ok (0s 3ms)
+    1 directories collected
+    2 files collected
+    0 reusable modules collected
+    Target service: hdi_hello_world_db
+    Session variable APPLICATION is set to "SAP_HDI//".
+    Previous build with request ID 312 finished at 2019-05-29 21:36:26.764000900 with status Finished and message: Configuring libraries in the container "HDI_HELLO_WORLD"; removing []; updating or adding [com.sap.hana.di.afllangprocedure, com.sap.hana.di.analyticprivilege, com.sap.hana.di.calculationview, com.sap.hana.di.cds, com.sap.hana.di.collection, com.sap.hana.di.constraint, com.sap.hana.di.copyonly, com.sap.hana.di.dropcreatetable, com.sap.hana.di.flowgraph, com.sap.hana.di.fulltextindex, com.sap.hana.di.function, com.sap.hana.di.graphworkspace, com.sap.hana.di.index, com.sap.hana.di.library, com.sap.hana.di.logicalschema, com.sap.hana.di.procedure, com.sap.hana.di.projectionview, com.sap.hana.di.reptask, com.sap.hana.di.resultcache, com.sap.hana.di.role, com.sap.hana.di.searchruleset, com.sap.hana.di.sequence, com.sap.hana.di.statistics, com.sap.hana.di.structuredprivilege, com.sap.hana.di.synonym, com.sap.hana.di.systemversioning, com.sap.hana.di.table, com.sap.hana.di.tabledata, com.sap.hana.di.tabletype, com.sap.hana.di.textconfig, com.sap.hana.di.textdictionary, com.sap.hana.di.textminingconfig, com.sap.hana.di.textrule, com.sap.hana.di.trigger, com.sap.hana.di.view, com.sap.hana.di.virtualfunction, com.sap.hana.di.virtualfunctionpackage, com.sap.hana.di.virtualpackage, com.sap.hana.di.virtualprocedure, com.sap.hana.di.virtualtable]... ok.
+    Processing revoke files...
+    Processing revoke files... ok (0s 0ms)
+    Processing grants files...
+    Processing grants files... ok (0s 0ms)
+    Preprocessing files...
+    Preprocessing files... ok (0s 1ms)
+    Connecting to the container "HDI_HELLO_WORLD"...
+    Connecting to the container "HDI_HELLO_WORLD"... ok (0s 4ms)
+    Locking the container "HDI_HELLO_WORLD"...
+    Locking the container "HDI_HELLO_WORLD"... ok (0s 45ms)
+    Synchronizing files with the container "HDI_HELLO_WORLD"...
+    Synchronizing files with the container "HDI_HELLO_WORLD"... ok (0s 290ms)
+    2 modified or added files are scheduled for deploy based on delta detection
+    0 deleted files are scheduled for undeploy based on delta detection (filtered by undeploy whitelist)
+    0 files are scheduled for deploy based on explicit specification
+    0 files are scheduled for undeploy based on explicit specification
+    Deploying to the container "HDI_HELLO_WORLD"...
+     Starting make in the container "HDI_HELLO_WORLD" with 2 files to deploy, 0 files to undeploy... 
+      Migrating libraries... 
+      Migrating libraries... ok  (0s 8ms)
+      Making... 
+       Preparing... 
+       Preparing the make transaction... 
+       Deploying the configuration file "src/.hdiconfig"... 
+       Deploying the configuration file "src/.hdiconfig"... ok  (0s 36ms)
+       Adding "src/TodoList.hdbtable" for deploy... 
+       Adding "src/TodoList.hdbtable" for deploy... ok  (0s 9ms)
+       Preparing... ok  (0s 168ms)
+       Preparing the make transaction... ok  (0s 175ms)
+       Checking the uniqueness of the catalog objects in the schema "HDI_HELLO_WORLD"... 
+       Checking the uniqueness of the catalog objects in the schema "HDI_HELLO_WORLD"... ok  (0s 3ms)
+       Calculating dependencies... 
+        Expanding... 
+         Expanding "src/TodoList.hdbtable"... 
+         Expanding "src/TodoList.hdbtable"... ok  (0s 6ms)
+        Expanding... ok  (0s 29ms)
+        Precompiling... 
+         Precompiling "src/TodoList.hdbtable"... 
+         Precompiling "src/TodoList.hdbtable"... ok  (0s 6ms)
+        Precompiling... ok  (0s 14ms)
+        Merging... 
+        Merging... ok  (0s 16ms)
+       Calculating dependencies... ok  (0s 100ms)
+       Processing work list... 
+        Deploying "src/TodoList.hdbtable"... 
+        Deploying "src/TodoList.hdbtable"... ok  (0s 15ms)
+       Processing work list... ok  (0s 22ms)
+       Finalizing... 
+        Checking the uniqueness of the catalog objects in the schema "HDI_HELLO_WORLD"... 
+        Checking the uniqueness of the catalog objects in the schema "HDI_HELLO_WORLD"... ok  (0s 15ms)
+       Finalizing... ok  (0s 70ms)
+       Make succeeded (0 warnings): 2 files deployed (effective 2), 0 files undeployed (effective 0), 0 dependent files redeployed 
+      Making... ok  (0s 396ms)
+     Starting make in the container "HDI_HELLO_WORLD" with 2 files to deploy, 0 files to undeploy... ok  (0s 410ms)
+    Deploying to the container "HDI_HELLO_WORLD"... ok (0s 537ms)
+    No default-access-role handling needed; global role "HDI_HELLO_WORLD::access_role" will not be adapted
+    Unlocking the container "HDI_HELLO_WORLD"...
+    Unlocking the container "HDI_HELLO_WORLD"... ok (0s 1ms)
+    Deployment to container HDI_HELLO_WORLD done [Deployment ID: none].
+    (1s 180ms)
+    ```
+    
+    If you made it this far, congratulations!  You're a true believer! (and/or insane to be following along so far!)
+
 
 # What's Next?
 
-As much as I enjoy creating punishing and grueling tutorial blogs, I'm open for any suggestions or ways to improve subsequent posts.  Otherwise, for the next Part, we'll add to this frontend application some additional Vue routes for the frontend app, as well as Express backend routes to feed it.
+Stay tuned as we get weirder, because next, we will take our app that we started in Parts 2 and 3 and do some simple CRUD operations to our brand new shiny HDI Container to feed it some data.

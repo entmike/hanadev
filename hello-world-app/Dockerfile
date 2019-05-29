@@ -18,6 +18,8 @@ COPY ./hello-world-app/server.conf /etc/nginx/conf.d/default.conf
 COPY /hello-world-app/backend /app/backend
 # Copy production build of Vue frontend app
 COPY /hello-world-app/frontend/dist /app/frontend
+# Copy cds example app
+COPY /hello-world-app/hdiWithoutXSA /app/cdsapp
 # Copy startup.sh script
 COPY ./hello-world-app/startup.sh /app/startup.sh
 

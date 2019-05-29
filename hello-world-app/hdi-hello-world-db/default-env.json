@@ -1,0 +1,36 @@
+{
+    "TARGET_CONTAINER": "hdi_hello_world_db",       
+    "VCAP_SERVICES": {
+        "hana": [
+            {
+                "name": "hdi_hello_world_db",
+                "label": "hana",
+                "tags": [
+                    "hana",
+                    "database",
+                    "relational"
+                ],
+                "plan": "hdi-shared",
+                "credentials": {
+                    "schema": "HDI_HELLO_WORLD",
+                    "hdi_password": "HXEHana1",
+                    "tenant_name": "HXE",
+                    "password": "HXEHana1",
+                    "driver": "com.sap.db.jdbc.Driver",
+                    "port": "39017",
+                    "encrypt": false,
+                    "db_hosts": [
+                        {
+                            "port": 39017,
+                            "host": "localhost"
+                        }
+                    ],
+                    "host": "localhost",
+                    "hdi_user": "HDI_HELLO_WORLD_USER_DT",
+                    "user": "HDI_HELLO_WORLD_USER_RT",
+                    "url": "jdbc:sap://localhost:39017/?currentschema=HDI_HELLO_WORLD"
+                }
+            }
+        ]
+    }
+}
