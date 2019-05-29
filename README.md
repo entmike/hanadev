@@ -4,13 +4,15 @@
 2. [Develop Simple on HANA Express in AWS Cloud 9 Part 2 – The Backend App](https://blogs.sap.com/2019/05/17/develop-simple-on-hana-express-in-aws-cloud-9-part-2-the-backend-app/)
 3. [Develop Simple on HANA Express in AWS Cloud 9 Part 3 – The Frontend App](https://blogs.sap.com/?p=820837&preview=true&preview_id=820837)
 4. [Develop Simple on HANA Express in AWS Cloud 9 Checkpoint – How to Catch Up/Restart](https://blogs.sap.com/2019/05/21/develop-simple-on-hana-express-in-aws-cloud-9-checkpoint-how-to-catch-uprestart/)
-5. [Develop Simple on HANA Express in AWS Cloud 9 - An HDI Container inside... a Docker Container?]()
+5. [Develop Simple on HANA Express in AWS Cloud 9 - An HDI Container inside... a Docker Container?](https://blogs.sap.com/2019/05/29/develop-simple-on-hana-express-in-aws-cloud-9-an-hdi-container-inside-a-docker-container/)
 
 ### Github Repository for this part:
 https://github.com/entmike/hanadev/tree/PartHDI
 
 # Overview
-In this part of the series, I will cover creating an HDI Container in our HANA Express Container without XSA.  This is many thanks to Thomas Jung's [post here](https://blogs.sap.com/2019/04/16/developing-with-hana-deployment-infrastructure-hdi-without-xsacf-or-web-ide/comment-page-1/#comment-461218).  But why?  Why not, I say!  Let's demonstrate not needing Web IDE or XSA for HDI Container development!
+It occured to me before going further with our app we started in Part 2 and Part 3, I needed to address on topic, DB artifact creation.  In the "old days", we'd use XS Classic repository to manage our DB Catalog object, however that was replaced with HDI/XSA (oft used synonymously, for right or wrong.)  Well, now SAP would say use Cloud Foundry on SCP to do it or bla bla bla who knows what in another year, right?  Well in the spirit of creating a lean/simple app (and not resorting to the obvious (and tempting) `CREATE COLUMN TABLE` statements), I set forth in seeing if I could use HDI-managed schemas in our bizzaro containerized Docker Stack.  So, in this part of the series, I will cover creating an HDI Container in our HANA Express Container without XSA.  All in AWS Cloud 9.  No installation of anything on your PC needed, as always.
+
+I must say many thanks to Thomas Jung's [post here](https://blogs.sap.com/2019/04/16/developing-with-hana-deployment-infrastructure-hdi-without-xsacf-or-web-ide/comment-page-1/#comment-461218).  Without his clever blog and expertise, this would not have been possible for me.
 
 ## Prerequisites
 
