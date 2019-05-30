@@ -1,0 +1,12 @@
+{
+    "role" : {
+        "name" : "AuthorizationManager",
+        "object_privileges" : [
+            {
+                "name" : "USERS",
+                "type" : "TABLE",
+                "privileges" : [ "SELECT", "DELETE", "INSERT", "UPDATE" ]
+            }
+        ]
+    }
+}

@@ -2,6 +2,7 @@ const express = require('express');
 const app = express();
 const bodyParser = require('body-parser');
 const hana = require('@sap/hana-client');
+require('dotenv').config();
 
 const port = process.env.PORT || 9999;
 
