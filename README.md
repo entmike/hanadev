@@ -167,8 +167,8 @@ The SQL and script files have been slightly modified to work in our containerize
 
 Next, we will create a super-simple Node module that will be responsible solely for telling the `diserver` in HANA Express to create some Database objects in our HDI Container.
 
-1. In your `hanadev/hello-world-app` folder, create a new folder called `hdi-todo-list-db`.
-2. Inside the `hdi-todo-list-db`, create a `package.json` file and paste in the following contents:
+1. In your `hanadev/hello-world-app` folder, create a new folder called `hdi-hello-world-db`.
+2. Inside the `hdi-hello-world-db`, create a `package.json` file and paste in the following contents:
     
     ```json
     {
