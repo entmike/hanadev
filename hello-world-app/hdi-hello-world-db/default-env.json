@@ -17,18 +17,18 @@
                     "tenant_name": "HXE",
                     "password": "HXEHana1",
                     "driver": "com.sap.db.jdbc.Driver",
-                    "port": "39017",
+                    "port": "39014",
                     "encrypt": false,
                     "db_hosts": [
                         {
-                            "port": 39017,
+                            "port": 39041,
                             "host": "localhost"
                         }
                     ],
                     "host": "localhost",
                     "hdi_user": "HDI_HELLO_WORLD_USER_DT",
                     "user": "HDI_HELLO_WORLD_USER_RT",
-                    "url": "jdbc:sap://localhost:39017/?currentschema=HDI_HELLO_WORLD"
+                    "url": "jdbc:sap://localhost:39041/?currentschema=HDI_HELLO_WORLD"
                 }
             }
         ]

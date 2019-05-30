@@ -36,10 +36,13 @@ The SQL and script files have been slightly modified to work in our containerize
     cd db-scripts
     wget https://entmike.github.io/hanadev/db-scripts/create_container.sql
     wget https://entmike.github.io/hanadev/db-scripts/drop_container.sql
+    wget https://entmike.github.io/hanadev/db-scripts/enable-hdi.sql
     wget https://entmike.github.io/hanadev/db-scripts/createContainer.sh
     wget https://entmike.github.io/hanadev/db-scripts/dropContainer.sh
+    wget https://entmike.github.io/hanadev/db-scripts/enableHDI.sh
     chmod +x createContainer.sh
     chmod +x dropContainer.sh
+    chmod +x enableHDI.sh
     ```
 
 2. Next, we need to start our HANA Express container.  (Not the whole Docker Compose Stack) In a second Terminal Window, type the following:
@@ -48,7 +51,7 @@ The SQL and script files have been slightly modified to work in our containerize
     ~/environment/hanadev/runhxe.sh
     ```
 
-    This command will start up just your HANA Express DB container and expose port `39017` to your Cloud 9 environment, as well as map the container's `/scripts` directory to your Cloud 9's `db-scripts` folder.  We are doing this so that we can demonstrate building an HDI container inside a Docker Container.
+    This command will start up just your HANA Express DB container and expose port `39017` and `39041` to your Cloud 9 environment, as well as map the container's `/scripts` directory to your Cloud 9's `db-scripts` folder.  We are doing this so that we can demonstrate building an HDI container inside a Docker Container.
     
     Once you see the following lines indicating that HANA Express has finished starting, proceed to the next step.
     
@@ -71,10 +74,13 @@ The SQL and script files have been slightly modified to work in our containerize
 3. In your first Terminal screen, type the following:
     
     ```bash
+    docker exec -ti hxe /scripts/enableHDI.sh SYSTEM HXEHana1 HXEHana1
     docker exec -ti hxe /scripts/createContainer.sh HXEHana1 HDI_HELLO_WORLD SYSTEM HXEHana1
     ```
     
-    You should get a some feedback in your Terminal indicating that the Schema and privileges have been assigned:
+    The first command above will enable HDI in our HXE Tenant DB.    
+
+    The second command, you should get a some feedback in your Terminal indicating that the Schema and privileges have been assigned:
 
     ```
     | REQUEST_ID           | ROW_ID               | LEVEL       | TYPE    | LIBRARY_ | PLUGIN_I | PATH     | SEVE | MESSAGE_CODE         | MESSAGE                                        | LOC | LOCATION | TIMESTAMP_UTC                 |
