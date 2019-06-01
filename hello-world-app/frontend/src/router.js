@@ -1,6 +1,7 @@
 import Vue from 'vue'
 import Router from 'vue-router'
 import Overview from './views/Overview.vue'
+import Admin from './views/Admin.vue'
 
 Vue.use(Router)
 
@@ -10,6 +11,10 @@ export default new Router({
       path: '/',
       name: 'Overview',
       component: Overview
+    },{
+      path: '/Admin',
+      name: 'Administration',
+      component: Admin
     }
   ]
 })

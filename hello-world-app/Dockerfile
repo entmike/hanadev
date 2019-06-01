@@ -18,8 +18,15 @@ COPY ./hello-world-app/server.conf /etc/nginx/conf.d/default.conf
 COPY /hello-world-app/backend /app/backend
 # Copy production build of Vue frontend app
 COPY /hello-world-app/frontend/dist /app/frontend
-# Copy cds example app
-COPY /hello-world-app/hdiWithoutXSA /app/cdsapp
+# Copy admin app
+COPY /hello-world-app/admin /app/admin
+
+# Force rebuild of @sap/hana-client since there are binary bindings
+RUN rm -Rf /app/backend/node_modules/@sap && \
+    rm -Rf /app/admin/node_modules/@sap && \
+    cd /app/admin && npm i && \
+    cd /app/backend && npm i
+
 # Copy startup.sh script
 COPY ./hello-world-app/startup.sh /app/startup.sh
 

@@ -1,7 +1,7 @@
 <template>
   <div>
     <v-list two-line>
-      <template v-for="(item,index) in results.M_SYSTEM_OVERVIEW">
+      <template v-for="(item,index) in systemProperties">
         <v-list-tile :key="index">
           <v-list-tile-content>
             <v-list-tile-title v-html="item.KEY"></v-list-tile-title>
@@ -14,32 +14,12 @@
 </template>
 
 <script>
-import axios from 'axios';
 export default {
   name: 'Overview',
-  data: () => ({
-    results: []
-  }),
-  components: {},
-  methods: {
-    getData(){
-      axios.post(process.env.VUE_APP_HANA_APP_BACKEND + '/api/overview/',{ }).then(res=>{
-        if(res.data){
-          this.results = res.data;
-        }else{
-          this.results = {};
-        }
-      }, err=> {
-        alert(JSON.stringify(process.env));
-        alert(JSON.stringify(err.response.data));
-      }).catch(err=>{
-        alert(`An error occured communicating with the backend.
-        ${err}`);
-      })
-    }
+  props : {
+    systemProperties : Array
   },
-  mounted(){
-    this.getData();
-  }
+  data: () => ({ }),
+  components: {}
 }
 </script>

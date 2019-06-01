@@ -1,15 +1,13 @@
 #!/bin/sh
-echo "Starting Servers..."
+echo "Starting Nginx..."
 mkdir -p /run/nginx
 rm /etc/nginx/sites-enabled/default
-echo "Starting nginx..."
 nginx
-echo "Building HANA CDS App HDI Container..."
-cd /app/cdsapp/db
-npm run start
-cd ..
-echo "Running HANA CDS App..."
-npm run start
-cd /app/backend
+
+echo "Running Admin Module..."
+cd /app/admin
+npm run start &
+
 echo "Starting backend..."
+cd /app/backend
 npm run prod

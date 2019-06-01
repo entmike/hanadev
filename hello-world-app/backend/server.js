@@ -4,7 +4,7 @@ const bodyParser = require('body-parser');
 const hana = require('@sap/hana-client');
 require('dotenv').config();
 
-const port = process.env.PORT || 9999;
+const port = process.env.BACKEND_PORT || 9999;
 
 if(!process.env.HANA_SERVERNODE
     || !process.env.HANA_PWD || !process.env.HANA_UID) {
@@ -15,12 +15,13 @@ if(!process.env.HANA_SERVERNODE
 }else{
     let overviewRouter = require('./api/overview');
     app.use('/api/overview', overviewRouter);
+    
     app.use(bodyParser.json());
     app.use(bodyParser.urlencoded({
         extended : true
     }));
     
     app.listen(port, ()=>{
-        console.log(`Server started on port ${port}`);
+        console.log(`Backend Server started on port ${port}\nCommunicating as ${process.env.HANA_UID} to HANA Server Node ${process.env.HANA_SERVERNODE}`);
     });
 }

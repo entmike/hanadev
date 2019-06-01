@@ -1,5 +1,5 @@
 <template>
-    <v-toolbar app color="blue darken-4" dark>
+    <v-toolbar app :color="appState.color" dark>
         <v-toolbar-title>{{appTitle}}</v-toolbar-title>
         <template v-for="(item,index) in items">
             <v-btn v-if="typeof item.link === 'undefined'" :key=index flat :to="'/' + item.title">{{item.title}}</v-btn>
@@ -7,6 +7,14 @@
         </template>
         <v-spacer />
         <v-chip color="primary" label outline text-color="white">{{systemInformation.user}}@{{systemInformation.server}}:{{systemInformation.port}}</v-chip>
+        <v-badge color="red">
+            <template v-slot:badge>
+              <span>!</span>
+            </template>
+            <v-btn v-if="appState.status == 'fail'" flat icon color="red lighten-2">
+                <v-icon overlap color="white">mail</v-icon>
+            </v-btn>
+      </v-badge>
     </v-toolbar>
 </template>
 
@@ -14,14 +22,16 @@
 export default {
     name: 'AppNav',
     props : {
-        systemInformation : Object
+        systemInformation : Object,
+        appState : Object
     },
     data(){
         return{
             appTitle: 'HANA Sandbox',
             drawer: false,
             items: [
-                { title: 'Overview',link: '' }
+                { title: 'Overview',link: '' },
+                { title: 'Administration',link: 'Admin' }
             ]
         };
     }

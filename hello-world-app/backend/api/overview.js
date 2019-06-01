@@ -20,7 +20,9 @@ router.post('/',cors(),(req,res)=>{
         if (err) {
             conn.disconnect();
             console.log(`Error connecting: ${JSON.stringify(err)}`);
-            res.end(err.msg);
+            res.status(500);
+            res.json(err);
+            res.end();
         }else{
             conn.exec("SELECT NAME AS KEY, VALUE AS VAL FROM M_SYSTEM_OVERVIEW;", null, function (err, results) {
                 conn.disconnect();

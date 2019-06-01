@@ -12,10 +12,8 @@
                 ],
                 "plan": "hdi-shared",
                 "credentials": {
-                    "schema": "HDI_HELLO_WORLD",
-                    "hdi_password": "HXEHana1",
+                    "schema": "HELLO_WORLD",
                     "tenant_name": "HXE",
-                    "password": "HXEHana1",
                     "driver": "com.sap.db.jdbc.Driver",
                     "port": "39041",
                     "encrypt": false,
@@ -26,9 +24,11 @@
                         }
                     ],
                     "host": "localhost",
-                    "hdi_user": "HDI_HELLO_WORLD_USER_DT",
-                    "user": "HDI_HELLO_WORLD_USER_RT",
-                    "url": "jdbc:sap://localhost:39041/?currentschema=HDI_HELLO_WORLD"
+                    "hdi_user": "HELLO_WORLD_USER_DT",
+                    "hdi_password": "HXEHana123",
+                    "user": "HELLO_WORLD_USER_RT",
+                    "password": "HXEHana123",
+                    "url": "jdbc:sap://localhost:39041/?currentschema=HELLO_WORLD"
                 }
             }
         ]
