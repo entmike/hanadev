@@ -6,7 +6,7 @@
             <v-btn v-else :key=index flat :to="'/' + item.link">{{item.title}}</v-btn>
         </template>
         <v-spacer />
-        <v-chip color="primary" label outline text-color="white">{{systemInformation.user}}@{{systemInformation.server}}:{{systemInformation.port}}</v-chip>
+        <v-chip color="primary" label outline text-color="white">{{systemInformation.user}}@{{systemInformation.server}}</v-chip>
         <v-badge color="red">
             <template v-slot:badge>
               <span>!</span>
