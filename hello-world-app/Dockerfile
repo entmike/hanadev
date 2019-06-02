@@ -17,7 +17,7 @@ COPY ./hello-world-app/server.conf /etc/nginx/conf.d/default.conf
 # Copy backend Node JS modu
 COPY /hello-world-app/backend /app/backend
 # Copy production build of Vue frontend app
-COPY /hello-world-app/frontend/dist /app/frontend
+COPY /hello-world-app/frontend /app/frontend
 # Copy admin app
 COPY /hello-world-app/admin /app/admin
 

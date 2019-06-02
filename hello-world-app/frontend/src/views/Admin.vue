@@ -48,6 +48,11 @@ import CreateUser from '@/CreateUser';
 import EnableHDI from '@/EnableHDI';
 import CreateContainer from '@/CreateContainer';
 import GrantHDIRole from '@/GrantHDIRole';
+let systemDBNode = process.env.VUE_APP_HANA_SYSTEMNODE || 'localhost:39017';
+let tenantDBNode = process.env.VUE_APP_HANA_TENANTNODE || 'localhost:39041';
+let authUser = process.env.VUE_APP_HANA_AUTHUSER || 'SYSTEM';
+let hdiAdminUser = process.env.VUE_APP_HANA_HDIADMINUSER || 'HDI_ADMIN';
+let tenantDBName = process.env.VUE_APP_HANA_TENANTDBNAME || 'HXE';
 
 import axios from 'axios';
 export default {
@@ -101,8 +106,8 @@ export default {
         data : { },
         endpoint : '/api/createUser',
         defaults : {
-          dbServerNode : 'localhost:39041',
-          authUser : 'SYSTEM'
+          dbServerNode : tenantDBNode,
+          authUser : authUser
         }
       },{
         option : "HDI Enable a Tenant DB",
@@ -113,12 +118,12 @@ export default {
         data : { },
         endpoint : '/api/enableHDI',
         defaults : {
-          systemDBServerNode : 'localhost:39017',
-          dbServerNode : 'localhost:39041',
-          authUser : 'SYSTEM',
-          tenantAuthUser : 'SYSTEM',
-          hdiAdmin : 'HDI_ADMIN',
-          tenantDB : 'HXE'
+          systemDBServerNode : systemDBNode,
+          dbServerNode : tenantDBNode,
+          authUser : authUser,
+          tenantAuthUser : authUser,
+          hdiAdmin : hdiAdminUser,
+          tenantDB : tenantDBName
         }
       },{
         option : "Create an HDI Container",
@@ -129,9 +134,9 @@ export default {
         data : { },
         endpoint : '/api/createContainer',
         defaults : {
-          dbServerNode : 'localhost:39041',
-          authUser : 'SYSTEM',
-          hdiAdmin : 'HDI_ADMIN'
+          dbServerNode : tenantDBNode,
+          authUser : authUser,
+          hdiAdmin : hdiAdminUser
         }
       },{
         option : "Grant HDI Role",
@@ -142,7 +147,7 @@ export default {
         data : { },
         endpoint : '/api/grantHDIRole',
         defaults : {
-          dbServerNode : 'localhost:39041',
+          dbServerNode : tenantDBNode,
           hdiDTUser : 'CONTAINERNAME_USER_DT'
         }
       }
