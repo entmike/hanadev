@@ -52,7 +52,7 @@ router.post('/',cors(),(req,res)=>{
                 logger.log(`Resetting user "${process.env.HANA_UID}" password...`);
                 return new Promise((resolve,reject)=>{
                     conn.exec(`ALTER USER ${process.env.HANA_UID} PASSWORD "${process.env.HANA_PWD}" NO FORCE_FIRST_PASSWORD_CHANGE;`, null, (err, results)=>{ 
-                        if (err && err.code!=331) return reject(err);
+                        if (err && err.code!=413) return reject(err);
                         resolve(results);
                     });
                 });
