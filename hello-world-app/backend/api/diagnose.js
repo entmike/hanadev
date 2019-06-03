@@ -10,15 +10,25 @@ router.options('*',cors());
 
 router.post('/',cors(),(req,res)=>{
     let conn = hana.createConnection();
-    let checks = [];
+    let checkTemplate = {
+        text : '',
+        status : 'Not Started',
+        message : '',
+        remedy : {},
+        data : {}
+    };
+    // Initialize issue check list.  Since this API fired, at least the backend test passed.
+    let connectivityTest = JSON.parse(JSON.stringify(checkTemplate));
+    connectivityTest.text = `Application Backend Connection Test`;
+    connectivityTest.status = `Passed`;
+    connectivityTest.message = `Connected with the backend application API successfully.`;
+    let checks = [connectivityTest];
+    
     new Promise((resolve,reject)=>{
-        // TEST CONNECTIVITY
+        // TEST DB CONNECTIVITY
         console.log('Testing connection...');
-        let test = {
-            text : "Connectivity Test",
-            status : "Not started",
-            data : {}
-        };
+        let test = JSON.parse(JSON.stringify(checkTemplate));
+        test.text = `HANA DB Connectivity Test`;
         checks.push(test);
         conn.connect({
             serverNode  : process.env.HANA_SERVERNODE,
@@ -49,6 +59,42 @@ router.post('/',cors(),(req,res)=>{
                 test.message = "Application User authenticated successfully.";
             }
             return resolve(test);
+        });
+    }).then(data=>{
+        console.log('Testing DB Services...');
+        return new Promise((resolve,reject)=>{
+            // CHECK IF DB Services are enabled
+            let test = JSON.parse(JSON.stringify(checkTemplate));
+            checks.push(test);
+            test.text = `Checking if DB Services are enabled...`;
+            if(data.status!="Pass") return resolve(test);
+            conn.exec(`SELECT
+                SUM(CASE WHEN SERVICE_NAME = 'diserver' THEN 1 ELSE 0 END) AS diserver,
+                SUM(CASE WHEN SERVICE_NAME = 'docstore' THEN 1 ELSE 0 END) AS docstore,
+                SUM(CASE WHEN SERVICE_NAME = 'scriptserver' THEN 1 ELSE 0 END) AS scriptserver,
+                SUM(CASE WHEN SERVICE_NAME = 'dpserver' THEN 1 ELSE 0 END) AS dpserver
+                FROM M_SERVICES
+                WHERE ACTIVE_STATUS = 'YES'
+                ;`, null, (err, results)=>{ 
+                    if(err){
+                        test.pass = `Fail`;
+                        test.message = `Could not query M_SERVICES to get service states.`;
+                        test.data = err;
+                    }else{
+                        var result = results[0];
+                        if(result.DISERVER !=1 || result.DOCSTORE !=1 || result.SCRIPTSERVER !=1 || result.DPSERVER !=1 ){
+                            test.message = `One or more services are not yet enabled on the tenant DB ${process.env.tenantDB}`;
+                            test.status = `Fail`;
+                            test.remedy = {
+                                component : 'EnableServices',
+                                endpoint : '/api/setupuser',
+                                defaults : {authUser : "SYSTEM"},
+                                message : 'Using a User Administator ID, this will enable DISERVER and DOCSTORE on your Tenant DB'
+                            }
+                        }
+                    }
+                    resolve(test);
+                });
         });
     }).then(data=>{
         // RETURN RESULTS

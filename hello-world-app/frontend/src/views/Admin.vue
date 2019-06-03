@@ -1,6 +1,5 @@
 <template>
   <div>
-    <v-dialog v-model="loading" persistent width="300px" >
     <v-dialog v-model="complete" scrollable max-width="300px">
       <v-card>
         <v-card-title>{{apiResults.status}}</v-card-title>
@@ -8,6 +7,7 @@
         <v-card-text>{{apiResults.message}}</v-card-text>
       </v-card>
     </v-dialog>
+    <v-dialog v-model="loading" persistent width="300px" >
       <v-card color="primary">
         <v-card-text>
           <span>{{loadingMessage}}</span>

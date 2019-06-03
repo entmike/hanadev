@@ -5,6 +5,7 @@ const hana = require('@sap/hana-client');
 require('dotenv').config();
 
 const port = process.env.BACKEND_PORT || 9999;
+process.env.BACKEND_PASSWORD = process.env.BACKEND_PASSWORD || `Admin1234`;
 
 if(!process.env.HANA_SERVERNODE
     || !process.env.HANA_PWD || !process.env.HANA_UID) {
@@ -16,6 +17,7 @@ if(!process.env.HANA_SERVERNODE
     app.use('/api/overview', require('./api/overview')); 
     app.use('/api/diagnose', require('./api/diagnose'));
     app.use('/api/setupUser', require('./api/setupUser'));
+    app.use('/api/backendenv', require('./api/backendenv'));
 
     app.use(bodyParser.json());
     app.use(bodyParser.urlencoded({

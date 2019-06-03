@@ -6,7 +6,7 @@
             <v-btn v-else :key=index flat :to="'/' + item.link">{{item.title}}</v-btn>
         </template>
         <v-spacer />
-        <v-chip color="primary" label outline text-color="white">{{systemInformation.user}}@{{systemInformation.server}}</v-chip>
+        <!--<v-chip color="primary" label outline text-color="white">{{systemInformation.user}}@{{systemInformation.server}}</v-chip>
         <v-badge color="red">
             <template v-slot:badge>
               <span>!</span>
@@ -14,7 +14,8 @@
             <v-btn v-if="appState.status == 'fail'" flat icon color="red lighten-2">
                 <v-icon overlap color="white">mail</v-icon>
             </v-btn>
-      </v-badge>
+        </v-badge>
+        -->
     </v-toolbar>
 </template>
 

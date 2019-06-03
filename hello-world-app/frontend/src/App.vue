@@ -1,5 +1,5 @@
 <template>
-  <v-app dark>
+  <v-app>
     <AppNav :appState="appState" :systemInformation="results.backend_information"/>
     <v-content transition="slide-x-transition">
       <router-view :systemProperties="results.M_SYSTEM_OVERVIEW"/> 
@@ -42,13 +42,10 @@
           this.appState = {
             color : '#FF0000',
             status : 'fail',
-            errorMessage : err.response.data
+            errorMessage : (err.response)?err.response.data:err
           };
           this.$router.push('Error');
-        }).catch(err=>{
-          alert(`An error occured communicating with the backend.
-          ${err}`);
-        })
+        });
       },
     },
     mounted(){
