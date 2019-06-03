@@ -1,7 +1,7 @@
 <template>
   <v-app dark>
     <AppNav :appState="appState" :systemInformation="results.backend_information"/>
-    <v-content transition="slide-x-transition" :value="errorVisible">
+    <v-content transition="slide-x-transition">
       <router-view :systemProperties="results.M_SYSTEM_OVERVIEW"/> 
     </v-content>
   </v-app>
@@ -44,8 +44,7 @@
             status : 'fail',
             errorMessage : err.response.data
           };
-          this.errorVisible = true;
-          // alert(JSON.stringify(process.env));
+          this.$router.push('Error');
         }).catch(err=>{
           alert(`An error occured communicating with the backend.
           ${err}`);

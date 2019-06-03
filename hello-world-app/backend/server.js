@@ -13,9 +13,10 @@ if(!process.env.HANA_SERVERNODE
     HANA_UID\tYour HANA User
     HANA_PWD\tYour HANA Password`);
 }else{
-    let overviewRouter = require('./api/overview');
-    app.use('/api/overview', overviewRouter);
-    
+    app.use('/api/overview', require('./api/overview')); 
+    app.use('/api/diagnose', require('./api/diagnose'));
+    app.use('/api/setupUser', require('./api/setupUser'));
+
     app.use(bodyParser.json());
     app.use(bodyParser.urlencoded({
         extended : true
