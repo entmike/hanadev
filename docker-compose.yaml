@@ -33,7 +33,6 @@ services:
     volumes:
       - $HOME/environment/hanadev/db-scripts:/scripts
       - hana-express:/hana/mounts
-    command: --agree-to-sap-license --master-password ${HXE_MASTER_PASSWORD}
     
 volumes:
   hana-express:

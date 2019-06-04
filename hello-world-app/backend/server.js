@@ -18,6 +18,9 @@ if(!process.env.HANA_SERVERNODE
     app.use('/api/diagnose', require('./api/diagnose'));
     app.use('/api/setupUser', require('./api/setupUser'));
     app.use('/api/backendenv', require('./api/backendenv'));
+    app.use('/api/setupprivileges', require('./api/setupPrivileges'));
+    app.use('/api/getconfig', require('./api/getconfig'));
+    app.use('/api/getallconfig', require('./api/getallconfig'));
 
     app.use(bodyParser.json());
     app.use(bodyParser.urlencoded({

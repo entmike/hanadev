@@ -8,7 +8,10 @@ module.exports = {
             },
             logs : ()=>{
                 return _logs;
+            },
+            flush : ()=>{
+                _logs = [];
             }
-        }
+        };
     }
-}
+};

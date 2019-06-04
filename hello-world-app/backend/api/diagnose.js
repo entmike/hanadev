@@ -3,6 +3,7 @@ const router = express.Router();
 const cors = require('cors');
 const hana = require('@sap/hana-client');
 const bodyParser = require('body-parser');
+const logger = require('../utils').logger();
 
 router.use(bodyParser.json());
 router.use(bodyParser.urlencoded({extended:true}));
@@ -61,6 +62,39 @@ router.post('/',cors(),(req,res)=>{
             return resolve(test);
         });
     }).then(data=>{
+        // SELECT * FROM "PUBLIC"."EFFECTIVE_PRIVILEGES" where USER_NAME = 'SYSTEM' AND OBJECT_TYPE = 'SYSTEMPRIVILEGE' AND PRIVILEGE = 'CATALOG READ' AND IS_VALID = 'TRUE';
+        return new Promise((resolve, reject)=>{
+            // CHECK APPLICATION USER PRIVILEGES
+            console.log(`Check privileges for ${process.env.HANA_UID}...`);
+            let test = JSON.parse(JSON.stringify(checkTemplate));
+            test.text = `HANA DB Privilege Test`;
+            checks.push(test);
+            if(data.status!="Pass") return resolve(test);
+            conn.exec(`SELECT COUNT(*) AS C FROM "PUBLIC"."EFFECTIVE_PRIVILEGES" where USER_NAME = '${process.env.HANA_UID}' AND OBJECT_TYPE = 'SYSTEMPRIVILEGE' AND PRIVILEGE = 'CATALOG READ' AND IS_VALID = 'TRUE'`, null, (err, results)=>{
+                if(err){
+                    test.status = `Fail`;
+                    test.message = `Could not check privileges.`;
+                    test.data = err;
+                }else{
+                    var result = results[0].C;
+                    if(result >= 1){
+                        test.status = `Pass`;
+                        test.message = `'${process.env.HANA_UID}' has the required privileges.`;
+                    }else{
+                        test.status = `Fail`;
+                        test.message = `'${process.env.HANA_UID}' does not have the required privileges to run this application.`;
+                        test.remedy = {
+                            component : 'SetupUser',
+                            endpoint : '/api/setupprivileges',
+                            defaults : {authUser : "SYSTEM"},
+                            message : `Using a User Administator ID, this will grant '${process.env.HANA_UID}' the required privileges to run this application.`
+                        }
+                    }
+                }
+                resolve(test);
+            });
+        });
+    }).then(data=>{
         console.log('Testing DB Services...');
         return new Promise((resolve,reject)=>{
             // CHECK IF DB Services are enabled
@@ -77,11 +111,12 @@ router.post('/',cors(),(req,res)=>{
                 WHERE ACTIVE_STATUS = 'YES'
                 ;`, null, (err, results)=>{ 
                     if(err){
-                        test.pass = `Fail`;
+                        test.status = `Fail`;
                         test.message = `Could not query M_SERVICES to get service states.`;
                         test.data = err;
                     }else{
                         var result = results[0];
+                        console.log(result);
                         if(result.DISERVER !=1 || result.DOCSTORE !=1 || result.SCRIPTSERVER !=1 || result.DPSERVER !=1 ){
                             test.message = `One or more services are not yet enabled on the tenant DB ${process.env.tenantDB}`;
                             test.status = `Fail`;
