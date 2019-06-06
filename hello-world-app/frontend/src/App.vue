@@ -1,11 +1,12 @@
 <template>
   <div>
-    <v-app v-if="config.configured==undefined">
+    <v-app v-if="config.status==undefined">
       <LoadingDialog v-model="loading" message="Loading, please wait..."/>
       <ErrorDialog v-model="error" :message="errorMessage"/>
     </v-app>
-    <RunningApp v-if="config.configured == true"/>
-    <SetupWizard v-if="config.configured == false"/>
+    <RunningApp v-if="config.status == 'configured'"/>
+    <SetupWizard v-if="config.status == 'initial'"/>
+    <MissingEnv :missing=this.config.missing v-if="config.status == 'missingenv'"/>
   </div>
 </template>
 <script>
@@ -13,11 +14,12 @@
   import RunningApp from '@/RunningApp';
   import LoadingDialog from '@/LoadingDialog';
   import ErrorDialog from '@/ErrorDialog';
+  import MissingEnv from '@/MissingEnv';
   import axios from 'axios';
   export default {
     name: 'App',
     components: {
-        RunningApp, SetupWizard, LoadingDialog, ErrorDialog
+        RunningApp, SetupWizard, LoadingDialog, ErrorDialog, MissingEnv
     },
     data () {
       return {
@@ -32,11 +34,10 @@
         axios.post(process.env.VUE_APP_HANA_APP_BACKEND + '/api/getconfig/',{ }).then(res=>{
           this.loading = false;
           this.config = res.data;
-          if(this.config.configured) this.getData();
         },err=>{
           this.loading = false;
           this.error = true;
-          this.errorMessage = (err.response)?JSON.stringify(err.response.data):err;
+          this.errorMessage = (err.response)?err.response.data:err;
         });
       }
     },

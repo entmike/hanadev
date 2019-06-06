@@ -3,7 +3,7 @@ const router = express.Router();
 const cors = require('cors');
 const hana = require('@sap/hana-client');
 const bodyParser = require('body-parser');
-const logger = require('../utils').logger();
+const logger = require('../../utils').logger();
 
 router.use(bodyParser.json());
 router.use(bodyParser.urlencoded({extended:true}));

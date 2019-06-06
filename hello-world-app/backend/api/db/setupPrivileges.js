@@ -3,7 +3,7 @@ const router = express.Router();
 const cors = require('cors');
 const hana = require('@sap/hana-client');
 const bodyParser = require('body-parser');
-const logger = require('../utils').logger();
+const logger = require('../../utils').logger();
 
 router.use(bodyParser.json());
 router.use(bodyParser.urlencoded({extended:true}));
@@ -43,21 +43,13 @@ router.post('/',cors(),(req,res)=>{
             res.end();
         }else{
             new Promise((resolve,reject)=>{
-                logger.log(`Creating user "${process.env.HANA_UID}"...`);
-                conn.exec(`CREATE USER ${process.env.HANA_UID} PASSWORD "${process.env.HANA_PWD}" NO FORCE_FIRST_PASSWORD_CHANGE;`, null, (err, results)=>{ 
-                    if (err && err.code!=331) return reject(err);
+                logger.log(`Granting CATALOG READ to '${process.env.HANA_UID}''...`);
+                conn.exec(`GRANT CATALOG READ TO ${process.env.HANA_UID}`, null, (err, results)=>{ 
+                    if (err) return reject(err);
                     resolve(results);
                 });
             }).then(data=>{
-                logger.log(`Resetting user "${process.env.HANA_UID}" password...`);
-                return new Promise((resolve,reject)=>{
-                    conn.exec(`ALTER USER ${process.env.HANA_UID} PASSWORD "${process.env.HANA_PWD}" NO FORCE_FIRST_PASSWORD_CHANGE;`, null, (err, results)=>{ 
-                        if (err && err.code!=413) return reject(err);
-                        resolve(results);
-                    });
-                });
-            }).then(data=>{
-                logger.log(`Done creating ${process.env.HANA_UID}.`);
+                logger.log(`Done granting privileges to ${process.env.HANA_UID}.`);
                 res.status(200);
                 res.json({
                     success : true,
