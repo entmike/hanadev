@@ -48,6 +48,7 @@ import CreateUser from '@/CreateUser';
 import EnableHDI from '@/EnableHDI';
 import CreateContainer from '@/CreateContainer';
 import GrantHDIRole from '@/GrantHDIRole';
+import MapExternalHost from '@/MapExternalHost';
 let systemDBNode = process.env.VUE_APP_HANA_SYSTEMNODE || 'localhost:39017';
 let tenantDBNode = process.env.VUE_APP_HANA_TENANTNODE || 'localhost:39041';
 let authUser = process.env.VUE_APP_HANA_AUTHUSER || 'SYSTEM';
@@ -149,6 +150,18 @@ export default {
         defaults : {
           dbServerNode : tenantDBNode,
           hdiDTUser : 'CONTAINERNAME_USER_DT'
+        }
+      },{
+        option : "Map External Host",
+        description : "Map External Hostname/IP (Useful for Cloud, Docker-Machine Containers, and NATed HANA DBs)",
+        loadingMessage : "Mapping...",
+        dialog : false,
+        component : MapExternalHost,
+        data : { },
+        endpoint : '/api/mapExternalHost',
+        defaults : {
+          dbServerNode : systemDBNode,
+          authUser : authUser
         }
       }
     ]

@@ -20,15 +20,15 @@
                     "db_hosts": [
                         {
                             "port": 39041,
-                            "host": "localhost"
+                            "host": "192.168.99.100"
                         }
                     ],
-                    "host": "localhost",
+                    "host": "192.168.99.100",
                     "hdi_user": "HELLO_WORLD_USER_DT",
-                    "hdi_password": "HXEHana123",
+                    "hdi_password": "Green123",
                     "user": "HELLO_WORLD_USER_RT",
-                    "password": "HXEHana123",
-                    "url": "jdbc:sap://localhost:39041/?currentschema=HELLO_WORLD"
+                    "password": "Green123",
+                    "url": "jdbc:sap://192.168.99.100:39041/?currentschema=HELLO_WORLD"
                 }
             }
         ]
